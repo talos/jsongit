@@ -1,8 +1,8 @@
 # DictGit
 
-### Git for your dict
+*git for your dict*
 
-===
+---
 
 ### Installation
 
@@ -21,6 +21,8 @@ The tests run using nose.
 pip install nose
 nosetests test/dictgit.py
 ```
+
+---
 
 ### API
 
