@@ -5,7 +5,7 @@ Test caustic/dictgit.py .
 import os
 import unittest
 import shutil
-from caustic.dictgit import DictRepository, signature
+from dictgit.dictgit import DictRepository, signature
 
 TEST_DIR = os.path.join('test', 'tmp')
 
