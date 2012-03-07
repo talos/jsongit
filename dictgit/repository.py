@@ -86,6 +86,8 @@ class DictRepository(object):
         if not isinstance(data, dict):
             raise ValueError('Cannot commit non-dict values.')
 
+        committer = committer if committer else author
+
         blob_id = self.repo.write(GIT_OBJ_BLOB, json.dumps(data))
 
         # TreeBuilder doesn't support inserting into trees, so we roll our own
@@ -210,8 +212,9 @@ class DictRepository(object):
             for k, v in from_diff.get('_append', {}).items() + \
                         to_diff.get('_append', {}).items():
                 merged[k] = v
-            self.commit(to_key, merged, author, committer,
-                        'Auto-merge', [from_commit.oid, to_commit.oid])
+            self.commit(to_key, merged, author, 'Auto-merge',
+                        committer=committer,
+                        parents=[from_commit.oid, to_commit.oid])
             return True
 
     def clone(self, from_key, to_key):
