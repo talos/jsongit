@@ -1,10 +1,10 @@
-# DictGit
+# GitDict
 
 *git for your dict*
 
 ## Installation
 
-DictGit requires [pygit2][] and [json_diff][].  Pygit2 depends upon libgit2, 
+GitDict requires [pygit2][] and [json_diff][].  Pygit2 depends upon libgit2, 
 which has its own set of dependencies.  Information on installing libgit2 can 
 be found [here][].
 
@@ -15,8 +15,8 @@ be found [here][].
 ```python
 pip install pygit2
 pip install json_diff
-git clone https://github.com/talos/dictgit.git
-cd dictgit
+git clone https://github.com/talos/gitdict.git
+cd gitdict
 python setup.py install
 ```
 
@@ -31,4 +31,4 @@ nosetests
 
 Documentation is on [Read the Docs][].
 
-  [Read the Docs]: http://dictgit.readthedocs.org
+  [Read the Docs]: http://gitdict.readthedocs.org

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import dictgit
+import gitdict
 
 try:
     from setuptools import setup
@@ -9,16 +9,16 @@ except ImportError:
     from distutils.core import setup
 
 required = ['pygit2','json_diff']
-packages = ['dictgit']
+packages = ['gitdict']
 
 setup(
-    name='dictgit',
-    version=dictgit.__version__,
+    name='gitdict',
+    version=gitdict.__version__,
     description='Git for your Dict',
     long_description=open('README.md').read(),
     author='John Krauss',
     author_email='john@accursedware.com',
-    url='http://github.com/talos/dictgit',
+    url='http://github.com/talos/gitdict',
     packages=packages,
     install_requires=required,
     license='BSD',
