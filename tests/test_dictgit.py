@@ -1,7 +1,3 @@
-"""
-Test caustic/dictgit.py .
-"""
-
 import os
 import unittest
 import shutil
