@@ -15,13 +15,17 @@ be found [here][].
 ```python
 pip install pygit2
 pip install json_diff
+cd ~
+git clone https://github.com/talos/dictgit.git
+cd dictgit
+pip install dictgit 
 ```
 
 Make sure it works:
 
 ```python
 pip install nose
-nosetests test/dictgit.py
+nosetests
 ```
 
 ## Documentation 
