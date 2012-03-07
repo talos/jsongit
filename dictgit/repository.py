@@ -17,15 +17,16 @@ from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository
 DATA = 'data'
 
 class DictRepository(object):
-    """
-    An interface to dict git repo.
+    """The :class:`DictRepository <DictRepository>` object.
+
+    :param path:
+        The path to the repository.  If the path does not exist, a new bare
+        git repository will be initialized there.  If it does exist, then the
+        directory will be used as a bare git repository.
+    :type path: string
     """
 
     def __init__(self, path):
-        """
-        Initialize the repo with path.  Creates a bare repo there if none
-        exists yet.
-        """
         if os.path.isdir(path):
             self.repo = Repository(path)
         else:
@@ -63,11 +64,24 @@ class DictRepository(object):
 
         return json_diff.Comparator().compare_dicts(dict1, dict2)
 
-    def commit(self, path, data, author_sig, committer_sig, message, parents=None):
-        """
-        Commits the dict `data` to this repo.
+    def commit(self, key, data, author, message, committer=None, parents=None):
+        """Commit a dict to this :class:`DictRepository <DictRepository>`.
 
-        Defaults to the last commit for the dict of this path.
+        :param path: The key for the data.
+        :type path: string
+        :param data: The data.
+        :type data: dict
+        :param author: The author of the commit.
+        :type author: pygit2.Signature
+        :param message: The commit message.
+        :type message: string
+        :param committer:
+            (optional) The committer of this commit.  Defaults to the author.
+        :type committer: pygit2.Signature
+        :param parents:
+            (optional) A list of 20-byte object IDs of parent IDs.  Defaults
+            to the ID of the last commit for the key, or an empty list if
+            this is the first commit for the key.
         """
         if not isinstance(data, dict):
             raise ValueError('Cannot commit non-dict values.')
@@ -79,37 +93,53 @@ class DictRepository(object):
 
         # Default to last commit for this if no parents specified
         if not parents:
-            last_commit = self._last_commit(path)
+            last_commit = self._last_commit(key)
             parents = [last_commit.oid] if last_commit else []
 
-        self.repo.create_commit(self._ref(path), author_sig,
-                                committer_sig, message, tree_id, parents)
-        #self.repo.create_reference(self._ref(path), commit_id)
+        self.repo.create_commit(self._ref(key), author,
+                                committer, message, tree_id, parents)
 
-    def diff(self, path1, path2):
-        """
-        Compute a JSON diff between two instructions.
-        """
-        return self._commit_diff(self._last_commit(path1),
-                                 self._last_commit(path2))
+    def diff(self, key1, key2):
+        """Compute a JSON diff between two dicts.
 
-    def merge(self, from_path, to_path, author_sig, committer_sig):
-        """
-        Merge from_data into to_data.  This will
-        succeed if from_data can be fast-forwarded, or if the
-        modifications since their shared parent don't conflict.
+        :param key1: The key of the first dict.
+        :type key1: string
+        :param key2: The key of the second dict.
+        :type key2: string
 
-        Returns True if the merge succeeded, False otherwise.
+        :returns: The diff between the two dicts.
+        :rtype: dict
         """
-        from_commit = self._last_commit(from_path)
-        to_commit = self._last_commit(to_path)
+        return self._commit_diff(self._last_commit(key1),
+                                 self._last_commit(key2))
+
+    def merge(self, from_key, to_key, author, committer=None):
+        """Try to merge two dicts.  If possible, will fast-forward the merged
+        dict; otherwise, will attempt to merge in the intervening changes.
+
+        :param from_key: the key of the dict to merge changes from.
+        :type from_key: string
+        :param to_key: the key of the dict to merge changes into.
+        :type to_key: string
+        :param author:
+            the author of the commit resulting from this merge, if a new commit
+            is necessary.
+        :type author: pygit2.Signature
+        :param committer:
+            (optional) the committer of the commit resulting from this merge,
+            if a new commit is necessary.  Defaults to author.
+        :type committer: pygit2.Signature
+        :returns: True if the merge succeeded, False otherwise.
+        :rtype: boolean
+        """
+        from_commit = self._last_commit(from_key)
+        to_commit = self._last_commit(to_key)
+
+        committer = committer if committer else author
 
         # No difference
         if from_commit.oid == to_commit.oid:
             return True
-
-        # import pdb
-        # pdb.set_trace()
 
         # Test if a fast-forward is possible
         parent = from_commit
@@ -118,8 +148,8 @@ class DictRepository(object):
             from_parents.append(parent)
             # No conflicting commits, fast forward this sucka by moving the ref
             if parent.oid == to_commit.oid:
-                self.repo.lookup_reference(self._ref(to_path)).delete()
-                self.repo.create_reference(self._ref(to_path), from_commit.oid)
+                self.repo.lookup_reference(self._ref(to_key)).delete()
+                self.repo.create_reference(self._ref(to_key), from_commit.oid)
                 return True
             parent = parent.parents[0] if len(parent.parents) == 1 else None
 
@@ -180,25 +210,35 @@ class DictRepository(object):
             for k, v in from_diff.get('_append', {}).items() + \
                         to_diff.get('_append', {}).items():
                 merged[k] = v
-            self.commit(to_path, merged, author_sig, committer_sig,
+            self.commit(to_key, merged, author, committer,
                         'Auto-merge', [from_commit.oid, to_commit.oid])
             return True
 
-    def clone(self, from_path, to_path):
-        """
-        Clone from_path into to_path.  Raises a KeyError if from_path does not
-        exist, and a ValueError if to_path already already exists.
-        """
-        if self._last_commit(to_path):
-            raise ValueError('Cannot clone to %s, there is already a dict there.' % to_path)
-        if self._last_commit(from_path):
-            self.repo.create_reference(self._ref(to_path),
-                                       self._last_commit(from_path).oid)
-        else:
-            raise KeyError('Cannot clone %s, there is no dict there.' % from_path)
+    def clone(self, from_key, to_key):
+        """Clone a dict.
 
-    def get(self, path):
+        :param from_key: the key of the dict to clone
+        :type from_key: string
+        :param to_key: where to clone to
+        :type to_key: string
+        :raises:
+            KeyError if from_key does not exist, ValueError if to_key already
+            exists.
         """
-        Retrieve the most recent dict at path.  Returns None if there is none.
+        if self._last_commit(to_key):
+            raise ValueError('Cannot clone to %s, there is already a dict there.' % to_key)
+        elif self._last_commit(from_key):
+            self.repo.create_reference(self._ref(to_key),
+                                       self._last_commit(from_key).oid)
+        else:
+            raise KeyError('Cannot clone %s, there is no dict there.' % from_key)
+
+    def get(self, key):
+        """Retrieve the most recent dict.
+
+        :param key: the dict's key
+        :type key: string
+        :returns: the most recent dict
+        :rtype: dict
         """
-        return self._dict(self._last_commit(path))
+        return self._dict(self._last_commit(key))
