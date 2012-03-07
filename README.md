@@ -18,7 +18,7 @@ pip install json_diff
 cd ~
 git clone https://github.com/talos/dictgit.git
 cd dictgit
-pip install dictgit 
+python setup.py install
 ```
 
 Make sure it works:
