@@ -1,24 +1,20 @@
+# -*- coding: utf-8 -*-
+
+"""
+dictgit.repository
+"""
+
 import os
-import time
 import json_diff
 try:
     import simplejson as json
     json; # appease the uncaring pyflakes god
 except ImportError:
     import json
-from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, \
-                   Repository, Signature
+from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository
 
 # The name of the only blob within the tree.
 DATA = 'data'
-
-def signature(name, email):
-    """
-    Convenience method to generate a pygit2.Signature.
-    """
-    offset_sec = time.altzone if time.daylight else time.timezone
-    return Signature(name, email, int(time.time()), offset_sec / 60)
-
 
 class DictRepository(object):
     """

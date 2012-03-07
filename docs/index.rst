@@ -1,0 +1,22 @@
+.. DictGit documentation master file, created by
+   sphinx-quickstart on Tue Mar  6 21:49:10 2012.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to DictGit's documentation!
+===================================
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
