@@ -15,7 +15,6 @@ be found [here][].
 ```python
 pip install pygit2
 pip install json_diff
-cd ~
 git clone https://github.com/talos/dictgit.git
 cd dictgit
 python setup.py install
