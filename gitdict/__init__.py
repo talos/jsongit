@@ -11,3 +11,4 @@ from .repository import DictRepository
 from .author import DictAuthor
 from .dict import GitDict
 from .diff import DictDiff
+from .exceptions import NoGlobalAuthor

@@ -30,29 +30,27 @@ nosetests
 ## Example
 
 ```python
->>> from gitdict import DictRepository, DictAuthor
->>> repo = DictRepository('tmp', author=DictAuthor('me', 'me@me.com'))
+>>> from gitdict import DictRepository
+>>> repo = DictRepository('tmp')
 >>> foo = repo.create('foo', {'roses': 'red'})
+>>> foo
+GitDict(key=foo,dict={u'roses': u'red'},dirty=False)
 >>> bar = repo.clone(foo, 'bar')
 >>> foo['violets'] = 'blue'
 >>> foo
-GitDict({u'roses': u'red', 'violets': 'blue'})
->>> foo.dirty
-True
+GitDict(key=foo,dict={u'roses': u'red', 'violets': 'blue'},dirty=True)
 >>> foo.commit()
->>> foo.dirty
-False
 >>> foo
-GitDict({u'roses': u'red', 'violets': 'blue'})
+GitDict(key=foo,dict={u'roses': u'red', 'violets': 'blue'},dirty=False)
 >>> bar
-GitDict({u'roses': u'red'})
+GitDict(key=bar,dict={u'roses': u'red'},dirty=False)
 >>> bar.merge(foo)
 True
 >>> bar
-GitDict({u'roses': u'red', u'violets': u'blue'})
+GitDict(key=bar,dict={u'roses': u'red', u'violets': u'blue'},dirty=False)
 ```
 
-## Documentation 
+## Documentation
 
 Documentation is on [Read the Docs][].
 

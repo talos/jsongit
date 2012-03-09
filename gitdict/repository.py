@@ -6,6 +6,7 @@ gitdict.repository
 
 import os
 from .dict import GitDict
+from .author import get_default_author
 try:
     import simplejson as json
     json; # appease the uncaring pyflakes god
@@ -19,27 +20,23 @@ DATA = 'data'
 class DictRepository(object):
     """The :class:`DictRepository <DictRepository>` object.
 
-    :param path:
-        The path to the repository.  If the path does not exist, a new bare
-        git repository will be initialized there.  If it does exist, then the
+    :param repo_or_path:
+        The path to a repository, or an existing pygit2.Repository object.
+        If it is a path that does not exist, a new bare git repository will
+        be initialized there.  If it is a path that does exist, then the
         directory will be used as a bare git repository.
-    :type path: string
-    :param author:
-        (optional) An optional author to use by default.  This makes it
-        possible to commit without having to specify a signature.
-    :type author: :class:`DictAuthor <DictAuthor>`
+    :type repo_or_path: string or pygit2.Repository
     """
 
-    def __init__(self, path, author=None):
+    def __init__(self, repo_or_path=None):
 
-        #: A :class:`DictAuthor <DictAuthor>` used by default when
-        #: committing in this repo.
-        self.author = author
-
-        if os.path.isdir(path):
-            self._repo = Repository(path)
+        self._default_author = get_default_author()
+        if isinstance(repo_or_path, Repository):
+            self._repo = repo_or_path
+        elif os.path.isdir(repo_or_path):
+            self._repo = Repository(repo_or_path)
         else:
-            self._repo = init_repository(path, True) # bare repo
+            self._repo = init_repository(repo_or_path, True) # bare repo
 
     def _key_to_ref(self, key):
         return 'refs/%s/HEAD' % key
@@ -60,9 +57,11 @@ class DictRepository(object):
 
         :param raw_dict: the data to commit.
         :type raw_dict: dict
-        :param author: The author of the commit.
+        :param author:
+            The author of the commit.  If None, will be replaced with default.
         :type author: pygit2.Signature
-        :param committer: The committer of this commit.
+        :param committer:
+            The committer of this commit. If None, will be replaced with author.
         :type committer: pygit2.Signature
         :param message: The commit message.
         :type message: string
@@ -76,6 +75,9 @@ class DictRepository(object):
         if not isinstance(raw_dict, dict):
             raise ValueError("%s is not a dict" % raw_dict)
 
+        author = author or self._default_author.signature()
+        committer = committer or author
+
         blob_id = self._repo.write(GIT_OBJ_BLOB, json.dumps(raw_dict))
 
         # TreeBuilder doesn't support inserting into trees, so we roll our own
@@ -84,7 +86,8 @@ class DictRepository(object):
         return self._repo.create_commit(self._key_to_ref(key), author,
                                         committer, message, tree_id, parents)
 
-    def create(self, key, dict={}, autocommit=False, author=None):
+    def create(self, key, dict={}, autocommit=False, message="first commit",
+               author=None, committer=None):
         """Create a new :class:`GitDict <GitDict>`
 
         :param key: The key of the new :class:`GitDict <GitDict>`
@@ -95,20 +98,25 @@ class DictRepository(object):
             (optional) Whether the :class:`GitDict <GitDict>` should
             automatically commit. Defaults to false.
         :type autocommit: boolean
+        :param message:
+            (optional) Message for first commit.  Defaults to "first commit".
+        :type message: string
         :param author:
-            (optional) A default author for the :class:`GitDict <GitDict>`.
-            Defaults to the default author for the repository.
-        :type author: :class:`DictAuthor <DictAuthor>`
+            (optional) The signature for the author of the first commit.
+            Defaults to global author.
+        :type author: pygit2.Signature
+        :param committer:
+            (optional) The signature for the committer of the first commit.
+            Defaults to author.
+        :type author: pygit2.Signature
 
         :returns: the GitDict
         :rtype: :class:`GitDict <GitDict>`
         """
-        author = author or self.author
-        self.raw_commit(key, dict, author.signature(), author.signature(),
-                           'first commit', [])
-        return self.get(key, autocommit=autocommit, author=author)
+        self.raw_commit(key, dict, author, committer, message, [])
+        return self.get(key, autocommit=autocommit)
 
-    def get(self, key, autocommit=False, author=None):
+    def get(self, key, autocommit=False):
         """Obtain the :class:`GitDict <GitDict>` for a key.
 
         :param key: The key to look up.
@@ -121,16 +129,12 @@ class DictRepository(object):
             (optional) Whether the :class:`GitDict <GitDict>` should
             automatically commit. Defaults to false.
         :type autocommit: boolean
-        :param author:
-            (optional) A default author for the :class:`GitDict <GitDict>`.
-            Defaults to the default author for the repository.
-        :type author: :class:`DictAuthor <DictAuthor>`
 
         :returns: the GitDict
         :rtype: :class:`GitDict <GitDict>`
         :raises: KeyError if there is no entry for key
         """
-        return GitDict(self, key, autocommit=autocommit, author=author or self.author)
+        return GitDict(self, key, autocommit=autocommit)
 
     def fast_forward(self, from_dict, to_dict):
         """Fast forward a :class:`GitDict <GitDict>`.
@@ -156,7 +160,7 @@ class DictRepository(object):
         try:
             self._repo.create_reference(self._key_to_ref(key),
                                         self.get_commit_oid_for_key(original.key))
-            return self.get(key, autocommit=original.autocommit, author=original.author)
+            return self.get(key, autocommit=original.autocommit)
         except GitError:
             raise ValueError('Cannot clone to %s, there is already a dict there.' % key)
 

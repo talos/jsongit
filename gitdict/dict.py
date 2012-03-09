@@ -14,13 +14,10 @@ class GitDict(dict):
     rather than instantiated directly.
     """
 
-    def __init__(self, repo, key, autocommit, author):
+    def __init__(self, repo, key, autocommit):
 
         #: Whether changes should be automatically committed.
         self.autocommit = autocommit
-
-        #: The default :class:`DictAuthor <DictAuthor>` for commits.
-        self.author = author
 
         self._repo = repo
         self._key = key
@@ -38,7 +35,8 @@ class GitDict(dict):
 
     def __repr__(self):
         dictrepr = dict.__repr__(self)
-        return '%s(%s)' % (type(self).__name__, dictrepr)
+        return '%s(key=%s,dict=%s,dirty=%s)' % (type(self).__name__, self.key,
+                                                dictrepr, self.dirty)
 
     def _read(self):
         self._head_id = self._repo.get_commit_oid_for_key(self.key)
@@ -80,11 +78,11 @@ class GitDict(dict):
         """Commit the dict to its repository.
 
         :param author:
-            (optional) The author of this commit.  Defaults to a signature
-            generated from self.author.
+            (optional) The author of this commit. Defaults to global author.
         :type author: pygit2.Signature
         :param committer:
-            (optional) The committer of this commit.  Defaults to the author.
+            (optional) The committer of this commit.  Will default to global
+            author.
         :type committer: pygit2.Signature
         :param message:
             (optional) The commit message.  Defaults to a blank string.
@@ -94,14 +92,12 @@ class GitDict(dict):
             to the last commit.
         :type parents: array
         """
-        author = author or self.author.signature()
-        committer = committer or author
         parents = [self._head_id] if parents == None else parents
         self._head_id = self._repo.raw_commit(self.key, self, author,
                                               committer, message, parents)
         self._dirty = False
 
-    def merge(self, other):
+    def merge(self, other, author=None, committer=None):
         """Try to merge another :class:`GitDict <GitDict>` into this one.
         If possible, will fast-forward the merged dict; otherwise, will attempt
         to merge in the intervening changes.
@@ -109,13 +105,13 @@ class GitDict(dict):
         :param other: the :class:`GitDict <GitDict>` to merge in.
         :type other: :class:`GitDict <GitDict>`
         :param author:
-            the author of the commit resulting from this merge, if a new commit
-            is necessary.  Optional if the repository has an author.
-        :type author: :class:`DictAuthor <DictAuthor>`
+            (optional) The author of this commit, if one is necessary.
+            Defaults to global author.
+        :type author: pygit2.Signature
         :param committer:
-            (optional) the committer of the commit resulting from this merge,
-            if a new commit is necessary.  Defaults to author.
-        :type committer: :class:`DictAuthor <DictAuthor>`
+            (optional) The committer of this commit, if one is necessary.
+            Will default to global author.
+        :type committer: pygit2.Signature
         :returns: True if the merge succeeded, False otherwise.
         :rtype: boolean
         """
@@ -158,7 +154,8 @@ class GitDict(dict):
                 shared_ancestor[k] = v
             dict.clear(self)
             dict.update(self, shared_ancestor)
-            self.commit(message='Auto-merge',
+            self.commit(author=author, committer=committer,
+                        message='Auto-merge',
                         parents=[other._head_id, self._head_id])
             return True
 
