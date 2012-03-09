@@ -34,7 +34,7 @@ class DictDiff(dict):
     def appended(self):
         """A dict of appended keys and their values.
         """
-        return self._diff.get('_remove', {})
+        return self._diff.get('_append', {})
 
     def conflict(self, other):
         """Determine whether this :class:`DictDiff <DictDiff>`s conflicts with

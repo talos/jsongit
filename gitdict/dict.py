@@ -136,8 +136,6 @@ class GitDict(dict):
         try:
             shared_ancestor_id = (v for v in ancestors if v in other_ancestors).next()
         except StopIteration:
-            print ancestors
-            print other_ancestors
             return False # todo warn there's no shared parent
 
         # Now, see if the diffs conflict

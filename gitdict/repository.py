@@ -140,7 +140,7 @@ class DictRepository(object):
         :param to_dict: the :class:`GitDict <GitDict>`to fast forward to.
         :type to_dict: :class:`GitDict <GitDict>`
         """
-        from_ref = self.key_to_ref(from_dict.key)
+        from_ref = self._key_to_ref(from_dict.key)
         self._repo.lookup_reference(from_ref).delete()
         self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_dict.key))
 
