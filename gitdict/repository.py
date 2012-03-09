@@ -73,6 +73,9 @@ class DictRepository(object):
         :return: The oid of the new commit.
         :rtype: 20 bytes
         """
+        if not isinstance(raw_dict, dict):
+            raise ValueError("%s is not a dict" % raw_dict)
+
         blob_id = self._repo.write(GIT_OBJ_BLOB, json.dumps(raw_dict))
 
         # TreeBuilder doesn't support inserting into trees, so we roll our own

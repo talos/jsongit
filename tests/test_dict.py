@@ -35,9 +35,6 @@ class TestGitDict(RepoTestCase):
         dict['roses'] = 'red'
         self.assertEqual({'roses': 'red'}, self.repo.get('key'))
 
-    def test_head(self):
-        pass
-
     def test_nonshared_merge(self):
         """Cannot merge if no shared parent commit.
         """
@@ -49,10 +46,12 @@ class TestGitDict(RepoTestCase):
     def test_fast_forward_merge(self):
         """If there are no intervening commits, this merge should be simple.
         """
-        foo = self.repo.create('foo', {})
-        bar = self.repo.create('bar', {'violets': 'blue'})
+        foo = self.repo.create('foo', {'roses': 'red'})
+        bar = self.repo.clone(foo, 'bar')
+        bar['violets'] = 'blue'
+        bar.commit()
         self.assertTrue(foo.merge(bar))
-        self.assertEqual({'violets': 'blue'}, bar)
+        self.assertEqual({'roses': 'red', 'violets': 'blue'}, dict(bar))
 
     def test_merge_conflict(self):
         """
@@ -84,4 +83,4 @@ class TestGitDict(RepoTestCase):
         self.assertTrue(foo.merge(bar))
         self.assertEqual({'roses':'red',
                           'violets':'blue',
-                          'lilacs': 'purple'}, foo)
+                          'lilacs': 'purple'}, dict(foo))

@@ -133,8 +133,11 @@ class GitDict(dict):
         # Do a merge if there were no overlapping changes
         # First, find the shared parent
         ancestors = self._immediate_ancestors_and_head()
-        shared_ancestor_id = (v for v in ancestors if v in other_ancestors).next()
-        if not shared_ancestor_id:
+        try:
+            shared_ancestor_id = (v for v in ancestors if v in other_ancestors).next()
+        except StopIteration:
+            print ancestors
+            print other_ancestors
             return False # todo warn there's no shared parent
 
         # Now, see if the diffs conflict
