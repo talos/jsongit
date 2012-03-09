@@ -34,7 +34,6 @@ nosetests
 >>> repo = DictRepository('tmp', author=DictAuthor('me', 'me@me.com'))
 >>> foo = repo.create('foo', {'roses': 'red'})
 >>> bar = repo.clone(foo, 'bar')
->>> bar = repo.create('bar', {'roses': 'red'})
 >>> foo['violets'] = 'blue'
 >>> foo
 GitDict({u'roses': u'red', 'violets': 'blue'})
