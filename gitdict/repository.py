@@ -85,7 +85,7 @@ class DictRepository(object):
                                         committer, message, tree_id, parents)
 
     def create(self, key, dict={}, autocommit=False, author=None):
-        """Create a new :class:`DictGit <DictGit>`
+        """Create a new :class:`GitDict <GitDict>`
 
         :param key: The key of the new :class:`GitDict <GitDict>`
         :type key: :class:`GitDict <GitDict>`
