@@ -1,135 +1,51 @@
 import os
-import unittest
-import shutil
-from dictgit import DictRepository
-from dictgit.utils import signature
+from helpers import RepoTestCase, REPO_DIR
 
-TEST_DIR = os.path.join('test', 'tmp')
-
-SIG = signature('user', 'user@domain.com')
-
-class TestDictRepository(unittest.TestCase):
-
-    def setUp(self):
-        """
-        Build a new test dir for each run.
-        """
-        self.repo = DictRepository(TEST_DIR)
-
-    def tearDown(self):
-        """
-        Kill the old test dir after each run.
-        """
-        shutil.rmtree(TEST_DIR)
+class TestDictRepository(RepoTestCase):
 
     def test_new_repo(self):
         """
         Make sure repo exists.
         """
-        self.assertTrue(os.path.isdir(TEST_DIR))
+        self.assertTrue(os.path.isdir(REPO_DIR))
 
     def test_empty_dict(self):
         """
-        Arbitrary path should return None.
+        Arbitrary path should return new empty dict.
         """
-        self.assertIsNone(self.repo.get('nuthin'))
+        self.assertEqual({}, self.repo.get('nuthin'))
 
-    def test_commit_non_dict(self):
+    def test_get_non_dict(self):
         """
-        Test raises a ValueError.
+        Non-dict defaults should raise a ValueError.
         """
         for non_dict in ['string', 7, ['foo', 'bar']]:
             with self.assertRaises(ValueError):
-                self.repo.commit('path', non_dict, SIG, 'message')
-
-    def test_commit_get(self):
-        """
-        Commit to the repo.  Make sure the commit happened.
-        """
-        data = {'roses': 'red', 'violets': 'blue', 'foo': ['bar', 'baz']}
-        self.repo.commit('path', data, SIG, 'message')
-        self.assertEquals(data, self.repo.get('path'))
-
-    def test_multiple_commits(self):
-        """
-        Make a few commits and make sure we get the most recent content.
-        """
-        self.repo.commit('path', {'foo':'bar'}, SIG, 'message')
-        self.repo.commit('path', {'foo':'baz'}, SIG, 'message')
-        self.assertEqual({'foo': 'baz'}, self.repo.get('path'))
+                self.repo.get('key', non_dict)
 
     def test_clone(self):
         """
-        Clone an existing path.
+        Clone an existing GitDict
         """
-        self.repo.commit('original', {'foo': 'bar'}, SIG, 'message')
-        self.repo.clone('original', 'clone')
-        self.assertEqual({'foo': 'bar'}, self.repo.get('clone'))
-
-    def test_clone_nonexistent(self):
-        """
-        Cloning nonexistent path should throw KeyError.
-        """
-        with self.assertRaises(KeyError):
-            self.repo.clone('nonexistent', 'clone')
+        foo = self.repo.get('foo', {'roses', 'red'})
+        bar = self.repo.clone(foo, 'bar')
+        self.assertEqual('bar', bar.path)
+        self.assertEqual({'roses': 'red'}, bar)
 
     def test_clone_already_existing(self):
         """
-        Cloning already extant path should throw ValueError.
+        Cloning already extant key should throw ValueError.
         """
-        self.repo.commit('foo', {'foo': 'bar'}, SIG, 'message')
-        self.repo.commit('bar', {'foo': 'bar'}, SIG, 'message')
+        foo = self.repo.get('foo', {'roses', 'red'})
+        self.repo.get('bar', {'violets', 'blue'})
         with self.assertRaises(ValueError):
-            self.repo.clone('foo', 'bar')
+            self.repo.clone(foo, 'bar')
 
     def test_clone_self(self):
         """
-        Cloning existing repo should throw a ValueError.
+        Cloning existing key should throw a ValueError.
         """
-        self.repo.commit('foo', {'foo': 'bar'}, SIG, 'message')
+        foo = self.repo.get('foo', {'roses': 'red'})
         with self.assertRaises(ValueError):
-            self.repo.clone('foo', 'foo')
+            self.repo.clone(foo, 'foo')
 
-    def test_nonshared_merge(self):
-        """
-        Cannot merge if no shared parent commit.
-        """
-        self.repo.commit('foo', {'roses': 'red'}, SIG, 'message')
-        self.repo.commit('bar', {'violets': 'blue'}, SIG, 'message')
-        self.assertFalse(self.repo.merge('foo', 'bar', SIG))
-
-    def test_fast_forward_merge(self):
-        """
-        If there are no intervening commits, this merge should be simple.
-        """
-        self.repo.commit('foo', {}, SIG, 'message')
-        self.repo.clone('foo', 'bar')
-        self.repo.commit('foo', {'roses': 'red'}, SIG, 'message')
-        self.assertTrue(self.repo.merge('foo', 'bar', SIG))
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
-
-    def test_merge_conflict(self):
-        """
-        If there was a conflict that cannot be automatically resolved, should
-        not merge.
-        """
-        self.repo.commit('foo', {'roses': 'red'}, SIG, 'message')
-        self.repo.clone('foo', 'bar')
-        self.repo.commit('foo', {'roses': 'pink'}, SIG, 'message')
-        self.repo.commit('bar', {'roses': 'orange'}, SIG, 'message')
-        self.assertFalse(self.repo.merge('foo', 'bar', SIG))
-
-    def test_automatic_merge(self):
-        """
-        If the changes don't conflict, merges should be automatic.
-        """
-        self.repo.commit('foo', {'roses': 'red'}, SIG, 'message')
-        self.repo.clone('foo', 'bar')
-        self.repo.commit('foo', {'roses': 'red',
-                                 'violets': 'blue'}, SIG, 'message')
-        self.repo.commit('bar', {'roses': 'red',
-                                 'lilacs': 'purple'}, SIG, 'message')
-        self.assertTrue(self.repo.merge('foo', 'bar', SIG))
-        self.assertEquals({'roses':'red',
-                           'violets':'blue',
-                           'lilacs': 'purple'}, self.repo.get('bar'))

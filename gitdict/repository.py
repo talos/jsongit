@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 """
-dictgit.repository
+gitdict.repository
 """
 
 import os
-import json_diff
+from .dict import GitDict
 try:
     import simplejson as json
     json; # appease the uncaring pyflakes god
@@ -24,224 +24,134 @@ class DictRepository(object):
         git repository will be initialized there.  If it does exist, then the
         directory will be used as a bare git repository.
     :type path: string
+    :param author:
+        (optional) An optional author to use by default.  This makes it
+        possible to commit without having to specify a signature.
+    :type author: :class:`DictAuthor <DictAuthor>`
     """
 
-    def __init__(self, path):
+    def __init__(self, path, author=None):
+
+        #: A :class:`DictAuthor <DictAuthor>` used by default when
+        #: committing in this repo.
+        self.author = author
+
         if os.path.isdir(path):
-            self.repo = Repository(path)
+            self._repo = Repository(path)
         else:
-            self.repo = init_repository(path, True) # bare repo
+            self._repo = init_repository(path, True) # bare repo
 
-    def _ref(self, path):
-        """
-        Returns the String ref that should point to the most recent commit for
-        data of path.
-        """
-        return 'refs/%s/HEAD' % path
+    def _key_to_ref(self, key):
+        return 'refs/%s/HEAD' % key
 
-    def _last_commit(self, path):
-        """
-        Retrieve the last commit for `path`.
+    def get_commit_oid_for_key(self, key):
+        return self._repo[self._repo.lookup_reference(self._key_to_ref(key)).oid].oid
 
-        Returns None if there is no last commit (it doesn't exist).
-        """
-        try:
-            return self.repo[self.repo.lookup_reference(self._ref(path)).oid]
-        except KeyError:
-            return None
+    def get_raw_dict_for_commit_oid(self, commit_oid):
+        return json.loads(self._repo[self._repo[commit_oid].tree[DATA].oid].data)
 
-    def _dict(self, commit):
-        """
-        Returns the dict from a Commit. Returns None if no commit.
-        """
-        return json.loads(self.repo[commit.tree[DATA].oid].data) if commit else None
+    def get_parent_oids_for_commit_oid(self, commit_oid):
+        return [parent.oid for parent in self._repo[commit_oid].parents]
 
-    def _commit_diff(self, commit1, commit2):
-        """
-        Returns the json_diff between the dicts of two arbitrary commits.
-        """
-        dict1, dict2 = self._dict(commit1), self._dict(commit2)
-
-        return json_diff.Comparator().compare_dicts(dict1, dict2)
-
-    def commit(self, key, data, author, message, committer=None, parents=None):
+    def raw_commit(self, key, raw_dict, author, committer, message, parents):
         """Commit a dict to this :class:`DictRepository <DictRepository>`.
+        It is recommended that you use the :class:`GitDict <GitDict>` commit
+        method instead.
 
-        :param path: The key for the data.
-        :type path: string
-        :param data: The data.
-        :type data: dict
+        :param raw_dict: the data to commit.
+        :type raw_dict: dict
         :param author: The author of the commit.
         :type author: pygit2.Signature
+        :param committer: The committer of this commit.
+        :type committer: pygit2.Signature
         :param message: The commit message.
         :type message: string
-        :param committer:
-            (optional) The committer of this commit.  Defaults to the author.
-        :type committer: pygit2.Signature
         :param parents:
-            (optional) A list of 20-byte object IDs of parent IDs.  Defaults
-            to the ID of the last commit for the key, or an empty list if
-            this is the first commit for the key.
+            A list of 20-byte object IDs of parent commits.  An empty list
+            means this is the first commit.
+
+        :return: The oid of the new commit.
+        :rtype: 20 bytes
         """
-        if not isinstance(data, dict):
-            raise ValueError('Cannot commit non-dict values.')
-
-        committer = committer if committer else author
-
-        blob_id = self.repo.write(GIT_OBJ_BLOB, json.dumps(data))
+        blob_id = self._repo.write(GIT_OBJ_BLOB, json.dumps(raw_dict))
 
         # TreeBuilder doesn't support inserting into trees, so we roll our own
-        tree_id = self.repo.write(GIT_OBJ_TREE, '100644 %s\x00%s' % (DATA, blob_id))
+        tree_id = self._repo.write(GIT_OBJ_TREE, '100644 %s\x00%s' % (DATA, blob_id))
 
-        # Default to last commit for this if no parents specified
-        if not parents:
-            last_commit = self._last_commit(key)
-            parents = [last_commit.oid] if last_commit else []
+        return self._repo.create_commit(self._key_to_ref(key), author,
+                                        committer, message, tree_id, parents)
 
-        self.repo.create_commit(self._ref(key), author,
-                                committer, message, tree_id, parents)
+    def create(self, key, dict={}, autocommit=False, author=None):
+        """Create a new :class:`DictGit <DictGit>`
 
-    def diff(self, key1, key2):
-        """Compute a JSON diff between two dicts.
-
-        :param key1: The key of the first dict.
-        :type key1: string
-        :param key2: The key of the second dict.
-        :type key2: string
-
-        :returns: The diff between the two dicts.
-        :rtype: dict
-        """
-        return self._commit_diff(self._last_commit(key1),
-                                 self._last_commit(key2))
-
-    def merge(self, from_key, to_key, author, committer=None):
-        """Try to merge two dicts.  If possible, will fast-forward the merged
-        dict; otherwise, will attempt to merge in the intervening changes.
-
-        :param from_key: the key of the dict to merge changes from.
-        :type from_key: string
-        :param to_key: the key of the dict to merge changes into.
-        :type to_key: string
+        :param key: The key of the new :class:`GitDict <GitDict>`
+        :type key: :class:`GitDict <GitDict>`
+        :param dict: (optional) The value of the dict.  Defaults to empty.
+        :type dict: dict
+        :param autocommit:
+            (optional) Whether the :class:`GitDict <GitDict>` should
+            automatically commit. Defaults to false.
+        :type autocommit: boolean
         :param author:
-            the author of the commit resulting from this merge, if a new commit
-            is necessary.
-        :type author: pygit2.Signature
-        :param committer:
-            (optional) the committer of the commit resulting from this merge,
-            if a new commit is necessary.  Defaults to author.
-        :type committer: pygit2.Signature
-        :returns: True if the merge succeeded, False otherwise.
-        :rtype: boolean
+            (optional) A default author for the :class:`GitDict <GitDict>`.
+            Defaults to the default author for the repository.
+        :type author: :class:`DictAuthor <DictAuthor>`
+
+        :returns: the GitDict
+        :rtype: :class:`GitDict <GitDict>`
         """
-        from_commit = self._last_commit(from_key)
-        to_commit = self._last_commit(to_key)
+        author = author or self.author
+        self.raw_commit(key, dict, author.signature(), author.signature(),
+                           'first commit', [])
+        return self.get(key, autocommit=autocommit, author=author)
 
-        committer = committer if committer else author
+    def get(self, key, autocommit=False, author=None):
+        """Obtain the :class:`GitDict <GitDict>` for a key.
 
-        # No difference
-        if from_commit.oid == to_commit.oid:
-            return True
+        :param key: The key to look up.
+        :type key: string
+        :param default:
+            (optional) The default dict value if there is no existing value
+            for the key.  Defaults to an empty dict.
+        :type default: dict
+        :param autocommit:
+            (optional) Whether the :class:`GitDict <GitDict>` should
+            automatically commit. Defaults to false.
+        :type autocommit: boolean
+        :param author:
+            (optional) A default author for the :class:`GitDict <GitDict>`.
+            Defaults to the default author for the repository.
+        :type author: :class:`DictAuthor <DictAuthor>`
 
-        # Test if a fast-forward is possible
-        parent = from_commit
-        from_parents = []
-        while parent:
-            from_parents.append(parent)
-            # No conflicting commits, fast forward this sucka by moving the ref
-            if parent.oid == to_commit.oid:
-                self.repo.lookup_reference(self._ref(to_key)).delete()
-                self.repo.create_reference(self._ref(to_key), from_commit.oid)
-                return True
-            parent = parent.parents[0] if len(parent.parents) == 1 else None
+        :returns: the GitDict
+        :rtype: :class:`GitDict <GitDict>`
+        :raises: KeyError if there is no entry for key
+        """
+        return GitDict(self, key, autocommit=autocommit, author=author or self.author)
 
-        # Do a merge if there were no overlapping changes
-        # First, find the shared parent
-        shared_parent = None
-        for from_parent in from_parents:
-            parent = to_commit # start scanning up to_commit's ancestors
-            while parent:
-                if parent.oid == from_parent.oid:
-                    shared_parent = parent
-                    break
-                parent = parent.parents[0] if len(parent.parents) == 1 else None
-            if shared_parent:
-                break
-        if not shared_parent:
-            return False # todo warn there's no shared parent
+    def fast_forward(self, from_dict, to_dict):
+        """Fast forward a :class:`GitDict <GitDict>`.
 
-        # Now, see if the diffs conflict
-        from_diff = self._commit_diff(shared_parent, from_commit)
-        to_diff = self._commit_diff(shared_parent, to_commit)
-        conflicts = {}
-        for from_mod_type, from_mods in from_diff.items():
-            for to_mod_type, to_mods in to_diff.items():
-                for from_mod_key, from_mod_value in from_mods.items():
-                    if from_mod_key in to_mods:
-                        to_mod_value = to_mods[from_mod_key]
-                        # if the mod type is the same, it's OK if the actual
-                        # modification was the same.
-                        if from_mod_type == to_mod_type:
-                            if from_mod_value == to_mods[from_mod_key]:
-                                pass
-                            else:
-                                conflicts[from_mod_key] = {
-                                    'from': { from_mod_type: from_mod_value },
-                                    'to'  : { to_mod_type: to_mod_value }
-                                }
-                        # if the mod type was not the same, it's a conflict no
-                        # matter what
-                        else:
-                            conflicts[from_mod_key] = {
-                                'from': { from_mod_type: from_mod_value },
-                                'to'  : { to_mod_type: to_mod_value }
-                            }
+        :param from_dict: the :class:`GitDict <GitDict>` to fast forward.
+        :type from_dict: :class:`GitDict <GitDict>`
+        :param to_dict: the :class:`GitDict <GitDict>`to fast forward to.
+        :type to_dict: :class:`GitDict <GitDict>`
+        """
+        from_ref = self.key_to_ref(from_dict.key)
+        self._repo.lookup_reference(from_ref).delete()
+        self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_dict.key))
 
-        # No-go, the user's gonna have to figure this one out
-        if len(conflicts):
-            return False
-        # Sweet. we can apply all the diffs.
-        else:
-            merged = self._dict(shared_parent)
-            for k, v in from_diff.get('_remove', {}).items() + \
-                        to_diff.get('_remove', {}).items():
-                merged.pop(k)
-            for k, v in from_diff.get('_update', {}).items() + \
-                        to_diff.get('_update', {}).items():
-                merged[k] = v
-            for k, v in from_diff.get('_append', {}).items() + \
-                        to_diff.get('_append', {}).items():
-                merged[k] = v
-            self.commit(to_key, merged, author, 'Auto-merge',
-                        committer=committer,
-                        parents=[from_commit.oid, to_commit.oid])
-            return True
+    def clone(self, git_dict, to_key):
+        """Clone a :class:`GitDict <GitDict>`.
 
-    def clone(self, from_key, to_key):
-        """Clone a dict.
-
-        :param from_key: the key of the dict to clone
-        :type from_key: string
+        :param git_dict: the :class:`GitDict <GitDict>` to clone
+        :type git_dict: :class:`GitDict <GitDict>`
         :param to_key: where to clone to
         :type to_key: string
-        :raises:
-            KeyError if from_key does not exist, ValueError if to_key already
-            exists.
+        :raises: ValueError if to_key already exists.
         """
-        if self._last_commit(to_key):
+        if self.get_commit_oid_for_key(to_key):
             raise ValueError('Cannot clone to %s, there is already a dict there.' % to_key)
-        elif self._last_commit(from_key):
-            self.repo.create_reference(self._ref(to_key),
-                                       self._last_commit(from_key).oid)
         else:
-            raise KeyError('Cannot clone %s, there is no dict there.' % from_key)
-
-    def get(self, key):
-        """Retrieve the most recent dict.
-
-        :param key: the dict's key
-        :type key: string
-        :returns: the most recent dict
-        :rtype: dict
-        """
-        return self._dict(self._last_commit(key))
+            self._repo.create_reference(self._key_to_ref(git_dict.key),
+                                        self.get_commit_oid_for_key(git_dict.key))
