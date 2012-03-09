@@ -30,7 +30,7 @@ class TestDictRepository(RepoTestCase):
         """
         foo = self.repo.create('foo', {'roses': 'red'})
         bar = self.repo.clone(foo, 'bar')
-        self.assertEqual('bar', bar.path)
+        self.assertEqual('bar', bar.key)
         self.assertEqual(dict({'roses': 'red'}), bar)
 
     def test_clone_already_existing(self):

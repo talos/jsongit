@@ -11,7 +11,7 @@ try:
     json; # appease the uncaring pyflakes god
 except ImportError:
     import json
-from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository
+from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository, GitError
 
 # The name of the only blob within the tree.
 DATA = 'data'
@@ -144,17 +144,19 @@ class DictRepository(object):
         self._repo.lookup_reference(from_ref).delete()
         self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_dict.key))
 
-    def clone(self, git_dict, to_key):
+    def clone(self, original, key):
         """Clone a :class:`GitDict <GitDict>`.
 
-        :param git_dict: the :class:`GitDict <GitDict>` to clone
-        :type git_dict: :class:`GitDict <GitDict>`
-        :param to_key: where to clone to
-        :type to_key: string
+        :param original: the :class:`GitDict <GitDict>` to clone
+        :type original: :class:`GitDict <GitDict>`
+        :param key: where to clone to
+        :type key: string
         :raises: ValueError if to_key already exists.
         """
-        if self.get_commit_oid_for_key(to_key):
-            raise ValueError('Cannot clone to %s, there is already a dict there.' % to_key)
-        else:
-            self._repo.create_reference(self._key_to_ref(git_dict.key),
-                                        self.get_commit_oid_for_key(git_dict.key))
+        try:
+            self._repo.create_reference(self._key_to_ref(key),
+                                        self.get_commit_oid_for_key(original.key))
+            return self.get(key, autocommit=original.autocommit, author=original.author)
+        except GitError:
+            raise ValueError('Cannot clone to %s, there is already a dict there.' % key)
+
