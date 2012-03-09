@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-gitdict.signature
+gitdict.author
 """
 
 from time import altzone, daylight, timezone

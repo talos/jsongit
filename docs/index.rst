@@ -13,24 +13,28 @@ Documentation for GitDict
 
 .. ---------------------
 
-Classes
--------
+.. module:: gitdict
 
-.. module:: gitdict.dict
+Dict
+----
+
 .. autoclass:: GitDict
-   ::inherited-members
+   :inherited-members:
 
-.. module:: gitdict.repository
+Repository
+----------
+
 .. autoclass:: DictRepository
    :inherited-members:
 
-.. module:: gitdict.author
-.. autoclass:: DictAuthor
-   ::inherited-members
+Other
+-----
 
-.. module:: gitdict.diff
+.. autoclass:: DictAuthor
+   :inherited-members:
+
 .. autoclass:: DictDiff 
-   ::inherited-members
+   :inherited-members:
 
 
 ..  Indices and tables

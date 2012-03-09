@@ -6,7 +6,7 @@ gitdict.diff
 
 from json_diff import Comparator
 
-class DictDiff(dict):
+class DictDiff(object):
     """A wrapper around json_diff's dict comparisons.
 
     :param dict1: The first dict.  Can be a :class:`GitDict <GitDict>`.
