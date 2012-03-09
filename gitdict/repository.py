@@ -116,15 +116,26 @@ class DictRepository(object):
         self.raw_commit(key, dict, author, committer, message, [])
         return self.get(key, autocommit=autocommit)
 
+    def has(self, key):
+        """Determine whether there is an entry for key in this repository.
+
+        :param key: The key to check
+        :type key: string
+
+        :returns: whether there is an entry
+        :rtype: boolean
+        """
+        try:
+            self._repo.lookup_reference(self._key_to_ref(key))
+            return True
+        except KeyError:
+            return False
+
     def get(self, key, autocommit=False):
         """Obtain the :class:`GitDict <GitDict>` for a key.
 
         :param key: The key to look up.
         :type key: string
-        :param default:
-            (optional) The default dict value if there is no existing value
-            for the key.  Defaults to an empty dict.
-        :type default: dict
         :param autocommit:
             (optional) Whether the :class:`GitDict <GitDict>` should
             automatically commit. Defaults to false.

@@ -9,14 +9,27 @@ class TestDictRepository(RepoTestCase):
         """
         self.assertTrue(os.path.isdir(REPO_DIR))
 
-    def test_empty_dict(self):
+    def test_has(self):
+        """
+        Test existence of extant key
+        """
+        self.repo.create('foo', {'roses': 'red'})
+        self.assertTrue(self.repo.has('foo'))
+
+    def test_does_not_have(self):
+        """
+        Test existence of nonexistent key
+        """
+        self.assertFalse(self.repo.has('foo'))
+
+    def test_get_nonexistent(self):
         """
         Arbitrary path should cause KeyError
         """
         with self.assertRaises(KeyError):
             self.assertEqual({}, self.repo.get('nuthin'))
 
-    def test_get_non_dict(self):
+    def test_create_non_dict(self):
         """
         Non-dict defaults should raise a ValueError.
         """
