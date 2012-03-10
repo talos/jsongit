@@ -29,13 +29,29 @@ class TestDictRepository(RepoTestCase):
         with self.assertRaises(KeyError):
             self.assertEqual({}, self.repo.get('nuthin'))
 
-    def test_create_non_dict(self):
+    def test_create_number(self):
+        """Support numbers.
         """
-        Non-dict defaults should raise a ValueError.
+        self.repo.create('number', 7)
+        self.assertEqual(7, self.repo.get('number').value)
+
+    def test_create_string(self):
+        """Support strings
         """
-        for non_dict in ['string', 7, ['foo', 'bar']]:
-            with self.assertRaises(ValueError):
-                self.repo.create('key', non_dict)
+        self.repo.create('string', 'foo bar baz')
+        self.assertEqual('foo bar baz', self.repo.get('string').value)
+
+    def test_create_list(self):
+        """Support lists
+        """
+        self.repo.create('list', ['foo', 'bar', 'baz'])
+        self.assertEqual(['foo', 'bar', 'baz'], self.repo.get('list').value)
+
+    def test_create_dict(self):
+        """Support dicts
+        """
+        self.repo.create('dict', {'foo': 'bar'})
+        self.assertEqual({'foo': 'bar'}, self.repo.get('dict').value)
 
     def test_clone(self):
         """

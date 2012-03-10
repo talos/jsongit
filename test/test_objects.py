@@ -1,11 +1,11 @@
 from helpers import RepoTestCase
 
-class TestGitDict(RepoTestCase):
+class TestGitObject(RepoTestCase):
 
     def test_dirty(self):
         """Starts clean, then gets dirty.
         """
-        dict = self.repo.create('key')
+        dict = self.repo.create('key', {})
         self.assertFalse(dict.dirty)
         dict['roses'] = 'red'
         self.assertTrue(dict.dirty)
@@ -15,25 +15,25 @@ class TestGitDict(RepoTestCase):
     def test_autocommit_never_dirty(self):
         """Can't get dirty if autocommit.
         """
-        dict = self.repo.create('key', autocommit=True)
+        dict = self.repo.create('key', {}, autocommit=True)
         dict['roses'] = 'red'
         self.assertFalse(dict.dirty)
 
     def test_commit(self):
         """Values shouldn't take until commit.
         """
-        dict = self.repo.create('key')
+        dict = self.repo.create('key', {})
         dict['roses'] = 'red'
-        self.assertEqual({}, self.repo.get('key'))
+        self.assertEqual({}, self.repo.get('key').value)
         dict.commit()
-        self.assertEqual({'roses': 'red'}, self.repo.get('key'))
+        self.assertEqual({'roses': 'red'}, self.repo.get('key').value)
 
     def test_autocommit(self):
         """Values take immediately if autocommit.
         """
-        dict = self.repo.create('key', autocommit=True)
+        dict = self.repo.create('key', {}, autocommit=True)
         dict['roses'] = 'red'
-        self.assertEqual({'roses': 'red'}, self.repo.get('key'))
+        self.assertEqual({'roses': 'red'}, self.repo.get('key').value)
 
     def test_nonshared_merge(self):
         """Cannot merge if no shared parent commit.
@@ -51,7 +51,7 @@ class TestGitDict(RepoTestCase):
         bar['violets'] = 'blue'
         bar.commit()
         self.assertTrue(foo.merge(bar))
-        self.assertEqual({'roses': 'red', 'violets': 'blue'}, dict(bar))
+        self.assertEqual({'roses': 'red', 'violets': 'blue'}, bar.value)
 
     def test_merge_conflict(self):
         """
@@ -83,4 +83,4 @@ class TestGitDict(RepoTestCase):
         self.assertTrue(foo.merge(bar))
         self.assertEqual({'roses':'red',
                           'violets':'blue',
-                          'lilacs': 'purple'}, dict(foo))
+                          'lilacs': 'purple'}, foo.value)

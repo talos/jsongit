@@ -4,15 +4,21 @@
 gitdict.dict
 """
 
+from collections import MutableMapping, MutableSequence
 from .diff import DictDiff
 
-class GitDict(dict):
-    """The :class:`GitDict <GitDict>` object.  Functions just like a dict, but
-    it has a history and can be committed and merged.
 
-    These should be created with a :class:`DictRepository <DictRepository>`
-    rather than instantiated directly.
-    """
+def dirty(meth):
+    def wrapped(self, *args, **kwargs):
+        retval = meth(self, *args, **kwargs)
+        self._dirty = True  # if above call fails, we're not dirtied.
+        if self.autocommit:
+            self.commit()
+        return retval
+    return wrapped
+
+
+class GitObject(MutableMapping, MutableSequence):
 
     def __init__(self, repo, key, autocommit):
 
@@ -21,27 +27,49 @@ class GitDict(dict):
 
         self._repo = repo
         self._key = key
-        self._dirty = False
         self._read()
 
-    def __getitem__(self, key):
-        return dict.__getitem__(self, key)
+    def _value_meth(self, meth):
+        cls = self.value.__class__
+        try:
+            return getattr(cls, meth)
+        except AttributeError:
+            raise TypeError("%s does not support %s" % (cls, meth))
 
-    def __setitem__(self, key, val):
-        dict.__setitem__(self, key, val)
-        self._dirty = True
-        if self.autocommit:
-            self.commit()
+    def __contains__(self, item):
+        return self._value_meth('__contains__')(self.value, item)
+
+    def __len__(self):
+        return self._value_meth('__len__')(self.value)
+
+    def __iter__(self):
+        return self._value_meth('__iter__')(self.value)
+
+    def __getitem__(self, key):
+        return self._value_meth('__getitem__')(self.value, key)
+
+    @dirty
+    def __setitem__(self, key, value):
+        return self._value_meth('__setitem__')(self.value, key, value)
+
+    @dirty
+    def __delitem__(self, key):
+        return self._value_meth('__delitem__')(self.value, key)
+
+    @dirty
+    def insert(self, item):
+        return self._value_meth('insert')(self.value, item)
 
     def __repr__(self):
-        dictrepr = dict.__repr__(self)
-        return '%s(key=%s,dict=%s,dirty=%s)' % (type(self).__name__, self.key,
-                                                dictrepr, self.dirty)
+        return '%s(key=%s,type=%s,data=%s,dirty=%s)' % (type(self).__name__,
+                                                         self.key,
+                                                         self.type,
+                                                         self._value,
+                                                         self.dirty)
 
     def _read(self):
         self._head_id = self._repo.get_commit_oid_for_key(self.key)
-        dict.clear(self)
-        dict.update(self, self._repo.get_raw_dict_for_commit_oid(self._head_id))
+        self._value = self._repo.get_data_for_commit_oid(self._head_id)
         self._dirty = False
 
     def _immediate_ancestors_and_head(self):
@@ -68,11 +96,9 @@ class GitDict(dict):
         """
         return self._dirty
 
-    def update(self, *args, **kwargs):
-        """Update as if this were a regular dict.
-        """
-        for k, v in dict(*args, **kwargs).iteritems():
-            self[k] = v
+    @property
+    def value(self):
+        return self._value
 
     def commit(self, author=None, committer=None, message='', parents=None):
         """Commit the dict to its repository.
@@ -93,7 +119,7 @@ class GitDict(dict):
         :type parents: array
         """
         parents = [self._head_id] if parents == None else parents
-        self._head_id = self._repo.raw_commit(self.key, self, author,
+        self._head_id = self._repo.raw_commit(self.key, self._value, author,
                                               committer, message, parents)
         self._dirty = False
 
@@ -135,8 +161,9 @@ class GitDict(dict):
             return False # todo warn there's no shared parent
 
         # Now, see if the diffs conflict
-        shared_ancestor = self._repo.get_raw_dict_for_commit_oid(shared_ancestor_id)
-        other_diff = DictDiff(shared_ancestor, self._repo.get_raw_dict_for_commit_oid(other._head_id))
+        # TODO: this breaks for non-dicts! bad bad bad
+        shared_ancestor = self._repo.get_data_for_commit_oid(shared_ancestor_id)
+        other_diff = DictDiff(shared_ancestor, self._repo.get_data_for_commit_oid(other._head_id))
         self_diff = DictDiff(shared_ancestor, self)
 
         conflict = self_diff.conflict(other_diff)
@@ -152,10 +179,17 @@ class GitDict(dict):
                 shared_ancestor[k] = v
             for k, v in other_diff.appended.items() + self_diff.appended.items():
                 shared_ancestor[k] = v
-            dict.clear(self)
-            dict.update(self, shared_ancestor)
+            self._value = shared_ancestor
             self.commit(author=author, committer=committer,
                         message='Auto-merge',
                         parents=[other._head_id, self._head_id])
             return True
 
+
+# class GitDict(GitObject):
+#     """The :class:`GitDict <GitDict>` object.  Functions just like a dict, but
+#     it has a history and can be committed and merged.
+# 
+#     These should be created with a :class:`DictRepository <DictRepository>`
+#     rather than instantiated directly.
+#     """
