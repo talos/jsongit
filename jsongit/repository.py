@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 """
-gitdict.repository
+jsongit.repository
 """
 
 import os
-from .objects import GitObject
+from .objects import JsonGitObject
 from .author import get_default_author
 try:
     import simplejson as json
@@ -52,7 +52,7 @@ class DictRepository(object):
 
     def raw_commit(self, key, data, author, committer, message, parents):
         """Commit a dict to this :class:`DictRepository <DictRepository>`.
-        It is recommended that you use the :class:`GitDict <GitDict>` commit
+        It is recommended that you use the :class:`jsongit <jsongit>` commit
         method instead.
 
         :param data: the data to commit.
@@ -85,14 +85,14 @@ class DictRepository(object):
 
     def create(self, key, data, autocommit=False, message="first commit",
                author=None, committer=None):
-        """Create a new :class:`GitDict <GitDict>`
+        """Create a new :class:`jsongit <jsongit>`
 
-        :param key: The key of the new :class:`GitDict <GitDict>`
-        :type key: :class:`GitDict <GitDict>`
+        :param key: The key of the new :class:`jsongit <jsongit>`
+        :type key: :class:`jsongit <jsongit>`
         :param data:  The value of the item.
         :type data: anything serializable into JSON
         :param autocommit:
-            (optional) Whether the :class:`GitDict <GitDict>` should
+            (optional) Whether the :class:`jsongit <jsongit>` should
             automatically commit. Defaults to false.
         :type autocommit: boolean
         :param message:
@@ -107,8 +107,8 @@ class DictRepository(object):
             Defaults to author.
         :type author: pygit2.Signature
 
-        :returns: the GitDict
-        :rtype: :class:`GitDict <GitDict>`
+        :returns: the jsongit
+        :rtype: :class:`jsongit <jsongit>`
         """
         self.raw_commit(key, data, author, committer, message, [])
         return self.get(key, autocommit=autocommit)
@@ -129,38 +129,38 @@ class DictRepository(object):
             return False
 
     def get(self, key, autocommit=False):
-        """Obtain the :class:`GitDict <GitDict>` for a key.
+        """Obtain the :class:`jsongit <jsongit>` for a key.
 
         :param key: The key to look up.
         :type key: string
         :param autocommit:
-            (optional) Whether the :class:`GitDict <GitDict>` should
+            (optional) Whether the :class:`jsongit <jsongit>` should
             automatically commit. Defaults to false.
         :type autocommit: boolean
 
-        :returns: the GitDict
-        :rtype: :class:`GitDict <GitDict>`
+        :returns: the jsongit
+        :rtype: :class:`jsongit <jsongit>`
         :raises: KeyError if there is no entry for key
         """
-        return GitObject(self, key, autocommit=autocommit)
+        return JsonGitObject(self, key, autocommit=autocommit)
 
     def fast_forward(self, from_dict, to_dict):
-        """Fast forward a :class:`GitDict <GitDict>`.
+        """Fast forward a :class:`jsongit <jsongit>`.
 
-        :param from_dict: the :class:`GitDict <GitDict>` to fast forward.
-        :type from_dict: :class:`GitDict <GitDict>`
-        :param to_dict: the :class:`GitDict <GitDict>`to fast forward to.
-        :type to_dict: :class:`GitDict <GitDict>`
+        :param from_dict: the :class:`jsongit <jsongit>` to fast forward.
+        :type from_dict: :class:`jsongit <jsongit>`
+        :param to_dict: the :class:`jsongit <jsongit>`to fast forward to.
+        :type to_dict: :class:`jsongit <jsongit>`
         """
         from_ref = self._key_to_ref(from_dict.key)
         self._repo.lookup_reference(from_ref).delete()
         self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_dict.key))
 
     def clone(self, original, key):
-        """Clone a :class:`GitDict <GitDict>`.
+        """Clone a :class:`jsongit <jsongit>`.
 
-        :param original: the :class:`GitDict <GitDict>` to clone
-        :type original: :class:`GitDict <GitDict>`
+        :param original: the :class:`jsongit <jsongit>` to clone
+        :type original: :class:`jsongit <jsongit>`
         :param key: where to clone to
         :type key: string
         :raises: ValueError if to_key already exists.

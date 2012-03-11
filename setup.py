@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import gitdict
+import jsongit
 
 try:
     from setuptools import setup
@@ -9,16 +9,16 @@ except ImportError:
     from distutils.core import setup
 
 required = ['pygit2','json_diff']
-packages = ['gitdict']
+packages = ['jsongit']
 
 setup(
-    name='gitdict',
-    version=gitdict.__version__,
-    description='Git for your Dict',
+    name='jsongit',
+    version=jsongit.__version__,
+    description='Git for JSON',
     long_description=open('README.md').read(),
     author='John Krauss',
     author_email='john@accursedware.com',
-    url='http://github.com/talos/gitdict',
+    url='http://github.com/talos/jsongit',
     packages=packages,
     install_requires=required,
     license='BSD',
