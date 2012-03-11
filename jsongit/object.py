@@ -61,10 +61,9 @@ class JsonGitObject(MutableMapping, MutableSequence):
         return self._value_meth('insert')(self.value, item)
 
     def __repr__(self):
-        return '%s(key=%s,type=%s,data=%s,dirty=%s)' % (type(self).__name__,
+        return '%s(key=%s,value=%s,dirty=%s)' % (type(self).__name__,
                                                          self.key,
-                                                         self.type,
-                                                         self._value,
+                                                         self._value.__repr__(),
                                                          self.dirty)
 
     def _read(self):
@@ -148,7 +147,7 @@ class JsonGitObject(MutableMapping, MutableSequence):
         # Test if a fast-forward is possible
         other_ancestors = other._immediate_ancestors_and_head()
         if self._head_id in other_ancestors:
-            self._repo.fast_forward(self, other)
+            self._repo.fast_forward(self.key, other.key)
             self._read()
             return True
 

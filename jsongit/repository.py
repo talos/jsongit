@@ -84,9 +84,17 @@ class JsonGitRepository(object):
         return self._repo.create_commit(self._key_to_ref(key), author,
                                         committer, message, tree_id, parents)
 
+    def commit(self, key, data, author=None, committer=None, message='', parents=None):
+        """Commit new data to the key.  Maintains relation to parent commits.
+        """
+        if not parents:
+            parents = [self.get_commit_oid_for_key(key)] if self.has(key) else []
+        self.raw_commit(key, data, author, committer, message, parents)
+
     def create(self, key, data, autocommit=False, message="first commit",
                author=None, committer=None):
-        """Create a new :class:`jsongit <jsongit>`
+        """Create a new :class:`jsongit <jsongit>` Wipes relation to any parent
+        commits for key.
 
         :param key: The key of the new :class:`jsongit <jsongit>`
         :type key: :class:`jsongit <jsongit>`
@@ -145,31 +153,36 @@ class JsonGitRepository(object):
         """
         return JsonGitObject(self, key, autocommit=autocommit)
 
-    def fast_forward(self, from_dict, to_dict):
+    def fast_forward(self, from_key, to_key):
         """Fast forward a :class:`jsongit <jsongit>`.
 
-        :param from_dict: the :class:`jsongit <jsongit>` to fast forward.
-        :type from_dict: :class:`jsongit <jsongit>`
-        :param to_dict: the :class:`jsongit <jsongit>`to fast forward to.
-        :type to_dict: :class:`jsongit <jsongit>`
+        :param from_key: the key of the entry to fast forward
+        :type from_key: string
+        :param to_key: the key of the entry to fast forward to
+        :type to_key: string
         """
-        from_ref = self._key_to_ref(from_dict.key)
+        from_ref = self._key_to_ref(from_key)
         self._repo.lookup_reference(from_ref).delete()
-        self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_dict.key))
+        self._repo.create_reference(from_ref, self.get_commit_oid_for_key(to_key))
 
-    def clone(self, original, key):
+    def clone(self, source, dest, autocommit=False):
         """Clone a :class:`jsongit <jsongit>`.
 
-        :param original: the :class:`jsongit <jsongit>` to clone
-        :type original: :class:`jsongit <jsongit>`
-        :param key: where to clone to
-        :type key: string
+        :param source: The key of the source
+        :type source: string
+        :param dest: The key of the destination
+        :type dest: string
+        :param autocommit: whether the new object should have autocommit enabled
+        :type autocommit: bool
+
+        :return: A new :class:`JsonGitObject <JsonGitObject>`
+        :rtype: :class:`JsonGitObject <JsonGitObject>`
         :raises: ValueError if to_key already exists.
         """
         try:
-            self._repo.create_reference(self._key_to_ref(key),
-                                        self.get_commit_oid_for_key(original.key))
-            return self.get(key, autocommit=original.autocommit)
+            self._repo.create_reference(self._key_to_ref(dest),
+                                        self.get_commit_oid_for_key(source))
+            return self.get(dest, autocommit=autocommit)
         except GitError:
-            raise ValueError('Cannot clone to %s, there is already a dict there.' % key)
+            raise ValueError('Cannot clone to %s, there is already a dict there.' % dest)
 

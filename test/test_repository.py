@@ -57,25 +57,38 @@ class TestJsonGitRepository(RepoTestCase):
         """
         Clone an existing GitDict
         """
-        foo = self.repo.create('foo', {'roses': 'red'})
-        bar = self.repo.clone(foo, 'bar')
-        self.assertEqual('bar', bar.key)
-        self.assertEqual(dict({'roses': 'red'}), bar)
+        self.repo.create('foo', {'roses': 'red'})
+        self.repo.clone('foo', 'bar')
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_clone_already_existing(self):
         """
         Cloning already extant key should throw ValueError.
         """
-        foo = self.repo.create('foo', {'roses': 'red'})
+        self.repo.create('foo', {'roses': 'red'})
         self.repo.create('bar', {'violets': 'blue'})
         with self.assertRaises(ValueError):
-            self.repo.clone(foo, 'bar')
+            self.repo.clone('foo', 'bar')
 
     def test_clone_self(self):
         """
         Cloning existing key should throw a ValueError.
         """
-        foo = self.repo.create('foo', {'roses': 'red'})
+        self.repo.create('foo', {'roses': 'red'})
         with self.assertRaises(ValueError):
-            self.repo.clone(foo, 'foo')
+            self.repo.clone('foo', 'foo')
 
+    def test_commit_creation(self):
+        """
+        Can commit instead of create.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.assertEqual({'roses':'red'}, self.repo.get('foo'))
+
+    def test_commit_updating(self):
+        """
+        Can use commit to update.
+        """
+        self.repo.commit('foo', {'roses':'red'})
+        self.repo.commit('foo', {})
+        self.assertEqual({}, self.repo.get('foo'))

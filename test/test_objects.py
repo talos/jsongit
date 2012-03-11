@@ -47,7 +47,7 @@ class TestGitObject(RepoTestCase):
         """If there are no intervening commits, this merge should be simple.
         """
         foo = self.repo.create('foo', {'roses': 'red'})
-        bar = self.repo.clone(foo, 'bar')
+        bar = self.repo.clone('foo', 'bar')
         bar['violets'] = 'blue'
         bar.commit()
         self.assertTrue(foo.merge(bar))
