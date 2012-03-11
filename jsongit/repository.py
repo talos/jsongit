@@ -5,8 +5,8 @@ jsongit.repository
 """
 
 import os
-from .objects import JsonGitObject
-from .author import get_default_author
+from .object import JsonGitObject
+from .signature import global_config, signature
 try:
     import simplejson as json
     json; # appease the uncaring pyflakes god
@@ -17,7 +17,7 @@ from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository, GitE
 # The name of the only blob within the tree.
 DATA = 'data'
 
-class DictRepository(object):
+class JsonGitRepository(object):
     """The :class:`DictRepository <DictRepository>` object.
 
     :param repo_or_path:
@@ -30,7 +30,8 @@ class DictRepository(object):
 
     def __init__(self, repo_or_path=None):
 
-        self._default_author = get_default_author()
+        self._global_name = global_config('user.name')
+        self._global_email = global_config('user.email')
         if isinstance(repo_or_path, Repository):
             self._repo = repo_or_path
         elif os.path.isdir(repo_or_path):
@@ -72,7 +73,7 @@ class DictRepository(object):
         :return: The oid of the new commit.
         :rtype: 20 bytes
         """
-        author = author or self._default_author.signature()
+        author = author or signature(self._global_name, self._global_email)
         committer = committer or author
 
         blob_id = self._repo.write(GIT_OBJ_BLOB, json.dumps(data))

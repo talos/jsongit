@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 """
-gitdict.dict
+jsongit.object
 """
 
 from collections import MutableMapping, MutableSequence
-from .diff import DictDiff
+from .diff import JsonDiff
 
 
 def dirty(meth):
@@ -18,7 +18,7 @@ def dirty(meth):
     return wrapped
 
 
-class GitObject(MutableMapping, MutableSequence):
+class JsonGitObject(MutableMapping, MutableSequence):
 
     def __init__(self, repo, key, autocommit):
 
@@ -163,8 +163,8 @@ class GitObject(MutableMapping, MutableSequence):
         # Now, see if the diffs conflict
         # TODO: this breaks for non-dicts! bad bad bad
         shared_ancestor = self._repo.get_data_for_commit_oid(shared_ancestor_id)
-        other_diff = DictDiff(shared_ancestor, self._repo.get_data_for_commit_oid(other._head_id))
-        self_diff = DictDiff(shared_ancestor, self)
+        other_diff = JsonDiff(shared_ancestor, self._repo.get_data_for_commit_oid(other._head_id))
+        self_diff = JsonDiff(shared_ancestor, self)
 
         conflict = self_diff.conflict(other_diff)
 

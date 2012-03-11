@@ -9,5 +9,5 @@ __copyright__ = 'Copyright 2012 John Krauss'
 
 from .repository import JsonGitRepository
 from .signature import signature, global_config
-from .dict import JsonGitObject
+from .object import JsonGitObject
 from .diff import JsonDiff

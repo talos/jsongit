@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 """
-gitdict.diff
+jsongit.diff
 """
 
 from json_diff import Comparator
 
-class DictDiff(object):
+class JsonDiff(object):
     """A wrapper around json_diff's dict comparisons.
 
     :param dict1: The first dict.  Can be a :class:`GitDict <GitDict>`.
@@ -17,6 +17,7 @@ class DictDiff(object):
 
     def __init__(self, dict1, dict2):
         self._diff = Comparator().compare_dicts(dict1, dict2)
+        # todo inspect the diff for interior comparison dicts
 
     @property
     def removed(self):

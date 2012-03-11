@@ -1,7 +1,7 @@
 import os
 import unittest
 import shutil
-from gitdict import DictRepository
+from jsongit import JsonGitRepository
 
 REPO_DIR = os.path.join('test', 'tmp')
 
@@ -11,7 +11,7 @@ class RepoTestCase(unittest.TestCase):
         """
         Build a new test dir for each run.
         """
-        self.repo = DictRepository(REPO_DIR)
+        self.repo = JsonGitRepository(REPO_DIR)
 
     def tearDown(self):
         """

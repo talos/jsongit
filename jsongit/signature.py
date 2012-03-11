@@ -29,7 +29,7 @@ def global_config(name):
     # patch pygit2 to provide it.  In the interim, we must use subprocess.
     try:
         return subprocess.check_output(
-            ['git', 'config', '--global', 'user.name']).rstrip()
+            ['git', 'config', '--global', name]).rstrip()
     except subprocess.CalledProcessError: # thankfully, error code is returned
         raise NoGlobalSetting(name)
 

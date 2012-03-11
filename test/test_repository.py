@@ -1,7 +1,7 @@
 import os
 from helpers import RepoTestCase, REPO_DIR
 
-class TestDictRepository(RepoTestCase):
+class TestJsonGitRepository(RepoTestCase):
 
     def test_new_repo(self):
         """
