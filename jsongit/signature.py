@@ -27,10 +27,14 @@ def global_config(name):
     """
     # TODO libgit2 provides an interface for this, but pygit2 does not.  Should
     # patch pygit2 to provide it.  In the interim, we must use subprocess.
-    try:
-        return subprocess.check_output(
-            ['git', 'config', '--global', name]).rstrip()
-    except subprocess.CalledProcessError: # thankfully, error code is returned
+    popen = subprocess.Popen(['git', 'config', '--global', name],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
+    out, err = popen.communicate()
+    if popen.returncode == 0:
+        return out.rstrip()
+    else:
         raise NoGlobalSetting(name)
 
 def signature(name, email, time=None, offset=None):

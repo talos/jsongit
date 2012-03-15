@@ -1,5 +1,9 @@
+import sys
 import os
-import unittest
+if sys.version[:3] < '2.7':
+    import unittest2 as unittest
+else:
+    import unittest
 import shutil
 from jsongit import JsonGitRepository
 
