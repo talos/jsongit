@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# GitDict documentation build configuration file, created by
+# jsongit documentation build configuration file, created by
 # sphinx-quickstart on Tue Mar  6 23:32:42 2012.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -38,8 +38,8 @@ MOCK_MODULES = ['pygit2', 'json_diff']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
-import gitdict
-from gitdict import __version__
+import jsongit
+from jsongit import __version__
 
 # -- General configuration -----------------------------------------------------
 
@@ -63,7 +63,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'GitDict'
+project = u'jsongit'
 copyright = u'2012, John Krauss'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -187,7 +187,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'GitDictdoc'
+htmlhelp_basename = 'jsongitdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -206,7 +206,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'GitDict.tex', u'GitDict Documentation',
+  ('index', 'jsongit.tex', u'JsonGit Documentation',
    u'John Krauss', 'manual'),
 ]
 
@@ -236,7 +236,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'gitdict', u'GitDict Documentation',
+    ('index', 'jsongit', u'JsonGit Documentation',
      [u'John Krauss'], 1)
 ]
 
@@ -250,8 +250,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'GitDict', u'GitDict Documentation',
-   u'John Krauss', 'GitDict', 'Git for your Dict.',
+  ('index', 'jsongit', u'JsonGit Documentation',
+   u'John Krauss', 'jsongit', 'Git for your Dict.',
    'Miscellaneous'),
 ]
 

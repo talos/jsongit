@@ -10,7 +10,9 @@ from pygit2 import Signature
 import subprocess
 
 
-class NoGlobalSetting(RuntimeError):
+class NoGlobalSettingError(RuntimeError):
+    """Raised when the requested global setting does not exist.
+    """
 
     def __init__(name):
         super("Git on this system has no global setting for %s" % name)
@@ -23,7 +25,7 @@ def global_config(name):
     :type name: string
     :return: the value of the setting
     :rtype: string
-    :raises: NoGlobalSetting
+    :raises: NoGlobalSettingError
     """
     # TODO libgit2 provides an interface for this, but pygit2 does not.  Should
     # patch pygit2 to provide it.  In the interim, we must use subprocess.
@@ -35,7 +37,7 @@ def global_config(name):
     if popen.returncode == 0:
         return out.rstrip()
     else:
-        raise NoGlobalSetting(name)
+        raise NoGlobalSettingError(name)
 
 def signature(name, email, time=None, offset=None):
     """Convenience method to generate pygit2 signatures.

@@ -5,10 +5,10 @@ jsongit.object
 """
 
 from collections import MutableMapping, MutableSequence
-from .diff import JsonDiff
-
 
 def dirty(meth):
+    """Decorator that dirties up a JsonGitObject upon successful call.
+    """
     def wrapped(self, *args, **kwargs):
         retval = meth(self, *args, **kwargs)
         self._dirty = True  # if above call fails, we're not dirtied.
@@ -67,21 +67,15 @@ class JsonGitObject(MutableMapping, MutableSequence):
                                                          self.dirty)
 
     def _read(self):
-        self._head_id = self._repo.get_commit_oid_for_key(self.key)
-        self._value = self._repo.get_data_for_commit_oid(self._head_id)
+        head_id = self._repo._head_oid_for_key(self.key)
+        self._value = self._repo._data_for_commit_oid(head_id)
         self._dirty = False
 
-    def _immediate_ancestors_and_head(self):
-        parent = self._head_id
-        ancestors = []
-        while parent:
-            ancestors.append(parent)
-            parents = self._repo.get_parent_oids_for_commit_oid(parent)
-            if len(parents) == 1:
-                parent = parents[0]
-            else:
-                break
-        return ancestors
+    @property
+    def repo(self):
+        """The :class:`JsonGitRepository` of this object.
+        """
+        return self._repo
 
     @property
     def key(self):
@@ -91,104 +85,45 @@ class JsonGitObject(MutableMapping, MutableSequence):
 
     @property
     def dirty(self):
-        """Whether this :class:`GitDict <GitDict>` has uncommitted changes.
+        """Whether the current value is different than what's in the repo.
         """
         return self._dirty
 
     @property
     def value(self):
+        """The current (possibly dirty) value of this object.
+        """
         return self._value
 
-    def commit(self, author=None, committer=None, message='', parents=None):
-        """Commit the dict to its repository.
-
-        :param author:
-            (optional) The author of this commit. Defaults to global author.
-        :type author: pygit2.Signature
-        :param committer:
-            (optional) The committer of this commit.  Will default to global
-            author.
-        :type committer: pygit2.Signature
-        :param message:
-            (optional) The commit message.  Defaults to a blank string.
-        :type message: string
-        :param parents:
-            (optional) The 20-byte IDs of the parents of this commit.  Defaults
-            to the last commit.
-        :type parents: array
+    def commit(self, **kwargs):
+        """Convenience wrapper for :func:`JsonGitRepository.commit`
         """
-        parents = [self._head_id] if parents == None else parents
-        self._head_id = self._repo.raw_commit(self.key, self._value, author,
-                                              committer, message, parents)
+        self.repo.commit(self.key, self.value, **kwargs)
         self._dirty = False
 
-    def merge(self, other, author=None, committer=None):
-        """Try to merge another :class:`GitDict <GitDict>` into this one.
-        If possible, will fast-forward the merged dict; otherwise, will attempt
-        to merge in the intervening changes.
+    def merge(self, other, **kwargs):
+        """Convenience wrapper for :func:`JsonGitRepository.commit`
 
-        :param other: the :class:`GitDict <GitDict>` to merge in.
-        :type other: :class:`GitDict <GitDict>`
-        :param author:
-            (optional) The author of this commit, if one is necessary.
-            Defaults to global author.
-        :type author: pygit2.Signature
-        :param committer:
-            (optional) The committer of this commit, if one is necessary.
-            Will default to global author.
-        :type committer: pygit2.Signature
-        :returns: True if the merge succeeded, False otherwise.
-        :rtype: boolean
+        :param other: the object to merge in
+        :type other: :class:`JsonGitObject`
+
+        :raises: DifferentRepoError
         """
-        # No difference
-        if self._head_id == other._head_id:
-            return True
-
-        # Test if a fast-forward is possible
-        other_ancestors = other._immediate_ancestors_and_head()
-        if self._head_id in other_ancestors:
-            self._repo.fast_forward(self.key, other.key)
-            self._read()
-            return True
-
-        # Do a merge if there were no overlapping changes
-        # First, find the shared parent
-        ancestors = self._immediate_ancestors_and_head()
-        try:
-            shared_ancestor_id = (v for v in ancestors if v in other_ancestors).next()
-        except StopIteration:
-            return False # todo warn there's no shared parent
-
-        # Now, see if the diffs conflict
-        # TODO: this breaks for non-dicts! bad bad bad
-        shared_ancestor = self._repo.get_data_for_commit_oid(shared_ancestor_id)
-        other_diff = JsonDiff(shared_ancestor, self._repo.get_data_for_commit_oid(other._head_id))
-        self_diff = JsonDiff(shared_ancestor, self)
-
-        conflict = self_diff.conflict(other_diff)
-
-        # No-go, the user's gonna have to figure this one out
-        if conflict:
-            return False
-        # Sweet. we can apply all the diffs.
+        if not isinstance(other, JsonGitObject):
+            raise ValueError('Can only merge in another JsonGitObject')
+        if other.repo == self.repo:
+            if self.repo.merge(other.key, self.key, **kwargs):
+                self._read()
+                return True
+            else:
+                return False
         else:
-            for k, v in other_diff.removed.items() + self_diff.removed.items():
-                shared_ancestor.pop(k)
-            for k, v in other_diff.updated.items() + self_diff.updated.items():
-                shared_ancestor[k] = v
-            for k, v in other_diff.appended.items() + self_diff.appended.items():
-                shared_ancestor[k] = v
-            self._value = shared_ancestor
-            self.commit(author=author, committer=committer,
-                        message='Auto-merge',
-                        parents=[other._head_id, self._head_id])
-            return True
+            raise DifferentRepoError("Cannot merge object in, it's in another \
+                                     repo")
 
 
-# class GitDict(GitObject):
-#     """The :class:`GitDict <GitDict>` object.  Functions just like a dict, but
-#     it has a history and can be committed and merged.
-# 
-#     These should be created with a :class:`DictRepository <DictRepository>`
-#     rather than instantiated directly.
-#     """
+class DifferentRepoError(ValueError):
+    """This is raised if a merge is attempted on a :class:`JsonGitObject` in a
+    different repo.
+    """
+    pass

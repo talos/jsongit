@@ -1,4 +1,5 @@
 import os
+import jsongit
 from helpers import RepoTestCase, REPO_DIR
 
 class TestJsonGitRepository(RepoTestCase):
@@ -13,7 +14,7 @@ class TestJsonGitRepository(RepoTestCase):
         """
         Test existence of extant key
         """
-        self.repo.create('foo', {'roses': 'red'})
+        self.repo.commit('foo', {'roses': 'red'})
         self.assertTrue(self.repo.has('foo'))
 
     def test_does_not_have(self):
@@ -29,61 +30,54 @@ class TestJsonGitRepository(RepoTestCase):
         with self.assertRaises(KeyError):
             self.assertEqual({}, self.repo.get('nuthin'))
 
-    def test_create_number(self):
+    def test_commit_number(self):
         """Support numbers.
         """
-        self.repo.create('number', 7)
+        self.repo.commit('number', 7)
         self.assertEqual(7, self.repo.get('number').value)
 
-    def test_create_string(self):
+    def test_commit_string(self):
         """Support strings
         """
-        self.repo.create('string', 'foo bar baz')
+        self.repo.commit('string', 'foo bar baz')
         self.assertEqual('foo bar baz', self.repo.get('string').value)
 
-    def test_create_list(self):
+    def test_commit_list(self):
         """Support lists
         """
-        self.repo.create('list', ['foo', 'bar', 'baz'])
+        self.repo.commit('list', ['foo', 'bar', 'baz'])
         self.assertEqual(['foo', 'bar', 'baz'], self.repo.get('list').value)
 
-    def test_create_dict(self):
+    def test_commit_dict(self):
         """Support dicts
         """
-        self.repo.create('dict', {'foo': 'bar'})
+        self.repo.commit('dict', {'foo': 'bar'})
         self.assertEqual({'foo': 'bar'}, self.repo.get('dict').value)
 
-    def test_clone(self):
+    def test_fast_forward(self):
         """
-        Clone an existing GitDict
+        Copy an existing object with fast forward.
         """
-        self.repo.create('foo', {'roses': 'red'})
-        self.repo.clone('foo', 'bar')
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.fast_forward('foo', 'bar')
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
-    def test_clone_already_existing(self):
+    def test_fast_forward_already_existing(self):
         """
-        Cloning already extant key should throw ValueError.
+        Fast forwarding should overwrite already existing value.
         """
-        self.repo.create('foo', {'roses': 'red'})
-        self.repo.create('bar', {'violets': 'blue'})
-        with self.assertRaises(ValueError):
-            self.repo.clone('foo', 'bar')
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.commit('bar', {'violets': 'blue'})
+        self.repo.fast_forward('foo', 'bar')
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_clone_self(self):
         """
-        Cloning existing key should throw a ValueError.
-        """
-        self.repo.create('foo', {'roses': 'red'})
-        with self.assertRaises(ValueError):
-            self.repo.clone('foo', 'foo')
-
-    def test_commit_creation(self):
-        """
-        Can commit instead of create.
+        Fast forwarding to identical keys should raise an error.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.assertEqual({'roses':'red'}, self.repo.get('foo'))
+        with self.assertRaises(ValueError):
+            self.repo.fast_forward('foo', 'foo')
 
     def test_commit_updating(self):
         """
@@ -92,3 +86,21 @@ class TestJsonGitRepository(RepoTestCase):
         self.repo.commit('foo', {'roses':'red'})
         self.repo.commit('foo', {})
         self.assertEqual({}, self.repo.get('foo'))
+
+    def test_not_json(self):
+        """
+        Cannot commit something that cannot be converted to JSON to the db.
+        """
+        not_json = [lambda x: x]
+        for item in not_json:
+            with self.assertRaises(jsongit.NotJsonError):
+                self.repo.commit('foo', item)
+
+    def test_key_must_be_string(self):
+        """
+        Cannot commit to a non-string key in the repo.
+        """
+        not_strings = [lambda x: x, 4, None, ['foo', 'bar'], {'foo': 'bar'}]
+        for item in not_strings:
+            with self.assertRaises(jsongit.BadKeyTypeError):
+                self.repo.commit(item, {'foo': 'bar'})
