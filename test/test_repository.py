@@ -1,7 +1,7 @@
 import jsongit
-from helpers import RepoTestCase
+import helpers
 
-class TestJsonGitRepository(RepoTestCase):
+class TestJsonGitRepository(helpers.RepoTestCase):
 
     def test_has(self):
         """
