@@ -7,7 +7,6 @@ __author__ = 'John Krauss'
 __license__ = 'BSD'
 __copyright__ = 'Copyright 2012 John Krauss'
 
-from .repository import JsonGitRepository, NotJsonError, BadKeyTypeError
+from .repository import repo, NotJsonError, BadKeyTypeError
 from .utility import signature, global_config, NoGlobalSettingError
-from .object import JsonGitObject, DifferentRepoError
-from .diff import JsonDiff
+from .object import DifferentRepoError

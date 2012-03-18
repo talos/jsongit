@@ -1,14 +1,7 @@
-import os
 import jsongit
-from helpers import RepoTestCase, REPO_DIR
+from helpers import RepoTestCase
 
 class TestJsonGitRepository(RepoTestCase):
-
-    def test_new_repo(self):
-        """
-        Make sure repo exists.
-        """
-        self.assertTrue(os.path.isdir(REPO_DIR))
 
     def test_has(self):
         """

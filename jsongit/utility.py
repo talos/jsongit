@@ -60,3 +60,12 @@ def signature(name, email, time=None, offset=None):
     offset = offset or (altzone / 60 if daylight else timezone / 60)
     time = time or int(curtime())
     return Signature(name, email, time, offset)
+
+def import_json():
+    try:
+        import simplejson
+        return simplejson
+    except ImportError:
+        import json
+        return json
+

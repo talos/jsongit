@@ -5,22 +5,18 @@ jsongit.repository
 """
 
 import os
-try:
-    import simplejson as json
-    json; # appease the uncaring pyflakes god
-except ImportError:
-    import json
-from pygit2 import init_repository, GIT_OBJ_BLOB, GIT_OBJ_TREE, Repository
+import pygit2
 from .object import JsonGitObject
 from .diff import JsonDiff
-from .utility import global_config, signature
+from .utility import global_config, signature, import_json
 
 # The name of the only blob within the tree.
 DATA = 'data'
 
-class JsonGitRepository(object):
-    """
-    The object must be initialized with a path or a repo.
+
+def repo(path=None, repo=None, **kwargs):
+    """Obtain a :class:`JsonGitRepository`.  Either a path to a repo or an
+    existing repo must be provided.
 
     :param path:
         The path to a repository If it is a path that does not exist, a new
@@ -30,21 +26,27 @@ class JsonGitRepository(object):
     :param repo: An existing repository object.
     :type repo: :class:`pygit2.Repository`
     """
+    if repo and path:
+        raise TypeError("Cannot define repo and path")
+    if path:
+        if os.path.isdir(path):
+            repo = pygit2.Repository(path)
+        else:
+            repo = pygit2.init_repository(path, True) # bare repo
+    if not repo:
+        raise TypeError("Missing repo or path")
+    dumps = kwargs.pop('dumps', import_json().dumps)
+    loads = kwargs.pop('loads', import_json().loads)
+    return JsonGitRepository(repo, dumps, loads)
 
-    def __init__(self, path=None, repo=None):
+
+class JsonGitRepository(object):
+    def __init__(self, repo, dumps, loads):
+        self._repo = repo
         self._global_name = global_config('user.name')
         self._global_email = global_config('user.email')
-        if repo and path:
-            raise TypeError("Cannot define repo and path")
-        if repo:
-            self._repo = repo
-        elif path:
-            if os.path.isdir(path):
-                self._repo = Repository(path)
-            else:
-                self._repo = init_repository(path, True) # bare repo
-        else:
-            raise TypeError("Missing repo or path")
+        self._dumps = dumps
+        self._loads = loads
 
     def _key_to_ref(self, key):
         if isinstance(key, basestring):
@@ -56,7 +58,7 @@ class JsonGitRepository(object):
         return self._repo[self._repo.lookup_reference(self._key_to_ref(key)).oid].oid
 
     def _data_for_commit_oid(self, commit_oid):
-        return json.loads(self._repo[self._repo[commit_oid].tree[DATA].oid].data)
+        return self._loads(self._repo[self._repo[commit_oid].tree[DATA].oid].data)
 
     def _parent_oids_for_commit_oid(self, commit_oid):
         return [parent.oid for parent in self._repo[commit_oid].parents]
@@ -85,12 +87,14 @@ class JsonGitRepository(object):
         if kwargs:
             raise TypeError("Unknown keyword args %s" % kwargs)
         try:
-            blob_id = self._repo.write(GIT_OBJ_BLOB, json.dumps(data))
+            blob_id = self._repo.write(pygit2.GIT_OBJ_BLOB, self._dumps(data))
         except ValueError as e:
+            raise NotJsonError(e)
+        except TypeError as e:
             raise NotJsonError(e)
 
         # TreeBuilder doesn't support inserting into trees, so we roll our own
-        tree_id = self._repo.write(GIT_OBJ_TREE, '100644 %s\x00%s' % (DATA, blob_id))
+        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, '100644 %s\x00%s' % (DATA, blob_id))
 
         return self._repo.create_commit(self._key_to_ref(key), author,
                                         committer, message, tree_id, parents)

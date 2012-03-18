@@ -3,39 +3,27 @@
 API
 ===
 
-.. module:: jsongit
-
 This documentation covers the parts of JsonGit you should be using.
 
-Repository
+Classes
 ----------
 
+.. module:: jsongit.repository
 .. autoclass:: JsonGitRepository
    :inherited-members:
 
-Object
-------
-
-You can use JSONGit without ever touching the objects.  They are provided as a
-convenience to access methods in their :class:`<JsonGitRepository>
-JsonGitRepository`.  You should not instantiate them directly.
-
+.. module:: jsongit.object
 .. autoclass:: JsonGitObject
    :inherited-members:
 
-
-Diff
-----
-
-Diffs are generated for you by JsonGit, you should not need to instantiate
-them.
-
+.. module:: jsongit.diff
 .. autoclass:: JsonDiff
    :inherited-members:
 
 Exceptions
 ----------
 
+.. module:: jsongit
 .. autoexception:: NoGlobalSettingError
 .. autoexception:: DifferentRepoError
 .. autoexception:: BadKeyTypeError
