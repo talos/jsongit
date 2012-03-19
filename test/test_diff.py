@@ -27,34 +27,56 @@ class DiffTest(helpers.unittest.TestCase):
             self.assertIsNone(diff.append)
 
     def test_diff_numbers(self):
-        diff = Diff(4, 7)
+        diff = Diff(4,
+                    7)
         self.assertEquals(7, diff.replace)
 
     def test_diff_strings(self):
-        diff = Diff('foo', 'bar')
+        diff = Diff('foo',
+                    'bar')
         self.assertEquals('bar', diff.replace)
 
     def test_diff_array_append(self):
-        diff = Diff(['foo'], ['foo', 'bar'])
+        diff = Diff(['foo'],
+                    ['foo', 'bar'])
         self.assertEquals({1: 'bar'}, diff.append)
 
     def test_diff_array_update(self):
-        diff = Diff(['foo', 'bar'], ['foo', 'baz'])
+        diff = Diff(['foo', 'bar'],
+                    ['foo', 'baz'])
         self.assertEquals({1: 'baz'}, diff.update)
 
     def test_diff_array_remove(self):
-        diff = Diff(['foo', 'bar'], ['foo'])
+        diff = Diff(['foo', 'bar'],
+                    ['foo'])
         self.assertEquals({1: 'bar'}, diff.remove)
 
     def test_diff_array_nested_append(self):
-        diff = Diff(['foo', ['bar']], ['foo', ['bar', 'baz']])
+        diff = Diff(['foo', ['bar']],
+                    ['foo', ['bar', 'baz']])
         self.assertEquals({1: 'baz'}, diff.update[1].append)
 
     def test_diff_array_nested_update(self):
-        diff = Diff(['foo', ['bar', 'baz']], ['foo', ['bar', 'bazzz']])
+        diff = Diff(['foo', ['bar', 'baz']],
+                    ['foo', ['bar', 'bazzz']])
         self.assertEquals({1: 'bazzz'}, diff.update[1].update)
 
     def test_diff_array_nested_remove(self):
-        diff = Diff(['foo', ['bar', 'baz']], ['foo', ['bar']])
+        diff = Diff(['foo', ['bar', 'baz']],
+                    ['foo', ['bar']])
         self.assertEquals({1: 'baz'}, diff.update[1].remove)
 
+    def test_diff_dict_append(self):
+        diff = Diff({'roses': 'red'},
+                    {'roses': 'red', 'violets': 'blue'})
+        self.assertEquals({'violets': 'blue'}, diff.append)
+
+    def test_diff_dict_update(self):
+        diff = Diff({'roses': 'red', 'violets': 'blue'},
+                    {'roses': 'red', 'violets': 'aqua'})
+        self.assertEquals({'violets': 'aqua'}, diff.update)
+
+    def test_diff_dict_remove(self):
+        diff = Diff({'roses': 'red', 'violets': 'blue'},
+                    {'roses': 'red'})
+        self.assertEquals({'violets': 'blue'}, diff.remove)
