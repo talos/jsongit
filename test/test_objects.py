@@ -47,7 +47,7 @@ class TestObject(RepoTestCase):
         """If there are no intervening commits, this merge should be simple.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('foo', 'bar')
+        bar = self.repo.fast_forward('bar', 'foo')
         bar['violets'] = 'blue'
         bar.commit()
         self.assertTrue(foo.merge(bar))
@@ -59,7 +59,7 @@ class TestObject(RepoTestCase):
         not merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('foo', 'bar')
+        bar = self.repo.fast_forward('bar', 'foo')
         foo['roses'] = 'pink'
         foo.commit()
         bar['roses'] = 'orange'
@@ -72,7 +72,7 @@ class TestObject(RepoTestCase):
         If the changes don't conflict, merges should be automatic.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('foo', 'bar')
+        bar = self.repo.fast_forward('bar', 'foo')
 
         foo['violets'] = 'blue'
         foo.commit()

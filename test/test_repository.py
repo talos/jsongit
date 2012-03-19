@@ -63,12 +63,66 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('dict', {'foo': 'bar'})
         self.assertEqual({'foo': 'bar'}, self.repo.get('dict').value)
 
-    def test_fast_forward(self):
+    def test_head(self):
+        """Get head and info
         """
-        Copy an existing object with fast forward.
+        self.repo.commit('obj', {'foo': 'bar'},
+                         message='my special message',
+                         author=jsongit.utils.signature('sally', 's@s.com'))
+        head = self.repo.head('obj')
+        self.assertEquals({'foo': 'bar'}, head.object.value)
+        self.assertEquals('my special message', head.message)
+        self.assertEquals('sally', head.author.name)
+        self.assertEquals('s@s.com', head.author.email)
+
+    def test_head_back(self):
+        """Get historical head and info
+        """
+        self.repo.commit('obj', {'foo': 'bar'},
+                         message='my special message',
+                         author=jsongit.utils.signature('sally', 's@s.com'))
+        self.repo.commit('obj', {'bar': 'baz'})
+        head = self.repo.head('obj', back=1)
+        self.assertEquals({'foo': 'bar'}, head.object.value)
+        self.assertEquals('my special message', head.message)
+        self.assertEquals('sally', head.author.name)
+        self.assertEquals('s@s.com', head.author.email)
+
+    def test_head_back_too_far(self):
+        """Should get IndexError if we try to go back too far.
+        """
+        self.repo.commit('obj', {'foo': 'bar'})
+        self.repo.commit('obj', {'bar': 'baz'})
+        with self.assertRaises(IndexError):
+            self.repo.head('obj', back=2)
+
+    def test_fast_forward_default(self):
+        """ Copy an existing object with default (key) fast forward.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('foo', 'bar')
+        self.repo.fast_forward('bar', 'foo')
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+
+    def test_fast_forward_key(self):
+        """Fast forward explicitly to a key.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.fast_forward('bar', key='foo')
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+
+    def test_fast_forward_commit(self):
+        """Fast forward explicitly to a commit.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.fast_forward('bar', commit=self.repo.head('foo'))
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+
+    def test_fast_forward_commit_old(self):
+        """Fast forward explicitly to an older commit.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.commit('foo', {'violets': 'blue'})
+        self.repo.fast_forward('bar', commit=self.repo.head('foo', back=1))
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_fast_forward_already_existing(self):
@@ -77,7 +131,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('bar', {'violets': 'blue'})
-        self.repo.fast_forward('foo', 'bar')
+        self.repo.fast_forward('bar', 'foo')
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_clone_self(self):

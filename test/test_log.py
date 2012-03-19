@@ -75,3 +75,24 @@ class TestLog(RepoTestCase):
         self.assertEquals("bob", c.author.name)
         self.assertEquals("bob@bob.com", c.author.email)
 
+    def test_merge_log(self):
+        """Provides history for merged data that includes all parents.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.fast_forward('bar', 'foo')
+        self.repo.commit('foo', {'roses': 'red', 'violets': 'blue'})
+        self.repo.commit('bar', {'roses': 'red', 'lilacs': 'purple'})
+        self.repo.merge('bar', 'foo')
+
+        gen = self.repo.log('bar')
+
+        self.assertEquals({'roses': 'red', 'violets':'blue', 'lilacs':'purple'},
+                          gen.next().object.value)
+        self.assertEquals({'roses': 'red', 'lilacs':'purple'},
+                          gen.next().object.value)
+        self.assertEquals({'roses': 'red', 'violets':'blue'},
+                          gen.next().object.value)
+        self.assertEquals({'roses': 'red'}, gen.next().object.value)
+        with self.assertRaises(StopIteration):
+            gen.next()
+
