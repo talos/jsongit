@@ -443,39 +443,6 @@ class DiffWrapper(object):
             return obj
 
 
-#     def conflicts(self, other):
-#         """Determine whether this JSON diff conflicts with another.
-# 
-#         :param other: another diff
-#         :type other: :class:`Diff`
-# 
-#         :returns: A list of conflicts, of 0-length if there were none
-#         :rtype: list
-#         """
-
-      #   for other_mod_key, other_mod_value in other_mods.items():
-      #       if other_mod_key in self_mods:
-      #           self_mod_value = self_mods[other_mod_key]
-      #           # if the mod type is the same, it's OK if the actual
-      #           # modification was the same.
-      #           if other_mod_type == self_mod_type:
-      #               if other_mod_value == self_mods[other_mod_key]:
-      #                   pass
-      #               else:
-      #                   conflicts[other_mod_key] = {
-      #                       'other': { other_mod_type: other_mod_value },
-      #                       'self' : { self_mod_type: self_mod_value }
-      #                   }
-      #           # if the mod type was not the same, it's a conflict no
-      #           # matter what
-      #           else:
-      #               conflicts[other_mod_key] = {
-      #                   'other': { other_mod_type: other_mod_value },
-      #                   'self' : { self_mod_type: self_mod_value }
-      #               }
-
-
-
 class Diff(DiffWrapper):
     """A class to encapsulate differences between two JSON git objects.
 

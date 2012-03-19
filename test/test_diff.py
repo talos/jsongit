@@ -166,6 +166,31 @@ class DiffTest(helpers.unittest.TestCase):
         self.assertEquals({1: ('baz', None)}, conflict.update)
         self.assertEquals({1: (None, 'bar')}, conflict.remove)
 
+    def xtest_diff_array_nested_append_conflict(self):
+        a = ['boo', ['foo']]
+        b = ['boo', ['foo', 'bar']]
+        c = ['boo', ['foo', 'baz']]
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertEquals({1: ('bar', 'baz')}, conflict.update[1].append)
+
+    def xtest_diff_array_nested_update_conflict(self):
+        a = ['boo', ['foo', 'bar']]
+        b = ['boo', ['foo', 'baz']]
+        c = ['boo', ['foo', 'bazzz']]
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        # self.assertEquals(('baz', 'bazzz'), conflict[1].update)
+        self.assertEquals({1: ('baz', 'bazzz')}, conflict.update)
+
+    def xtest_diff_array_nested_remove_conflict(self):
+        a = ['boo', ['foo', 'bar']]
+        b = ['boo', ['foo', 'baz']]
+        c = ['boo', ['foo']]
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        # self.assertEquals(('baz', None), conflict[1].update)
+        # self.assertEquals((None, 'bar'), conflict[1].remove)
+        self.assertEquals({1: ('baz', None)}, conflict.update)
+        self.assertEquals({1: (None, 'bar')}, conflict.remove)
+
     def test_diff_dict_append_conflict(self):
         a = {'roses': 'red'}
         b = {'roses': 'red', 'violets': 'blue'}
@@ -188,3 +213,4 @@ class DiffTest(helpers.unittest.TestCase):
         self.assertEquals({'violets': ('magenta', None)}, conflict.update)
         self.assertEquals({'violets': (None, 'blue')}, conflict.remove)
 
+    
