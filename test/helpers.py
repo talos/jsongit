@@ -5,26 +5,24 @@ if sys.version[:3] < '2.7':
     unittest
 else:
     import unittest
-import shutil
 import jsongit
-import uuid
+
+PATH = 'test_jsongit_repo'
 
 class RepoTestCase(unittest.TestCase):
-
-    def new_repo(self, **kwargs):
-        return jsongit.repo(**kwargs)
 
     def setUp(self):
         """
         Build a new test dir for each run.
         """
-        self._dir = os.path.join('test', str(uuid.uuid4()))
-        self.repo = self.new_repo(path=self._dir)
-        self.assertTrue(os.path.isdir(self._dir))
+        if os.path.lexists(PATH):
+            self.fail("Can't use %s for test repo, something is there." % PATH)
+        else:
+            self.repo = jsongit.repo(path='test_jsongit_repo')
 
     def tearDown(self):
         """
         Kill the old test dir after each run.
         """
-        shutil.rmtree(self._dir)
+        self.repo.destroy()
 

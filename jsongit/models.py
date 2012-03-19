@@ -10,6 +10,7 @@ import collections
 import functools
 import itertools
 import copy
+import shutil
 
 from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError
 import utils
@@ -111,6 +112,13 @@ class Repository(object):
         parents = kwargs.pop('parents', [self._head_for_key(key).oid] if self.has(key) else [])
         self._raw_commit(key, data, message, parents, **kwargs)
         return self.get(key, autocommit=autocommit)
+
+    def destroy(self):
+        """Erase this Git repository entirely.  This will remove its directory.
+        Methods called on a repository or its objects after it is destroyed
+        will throw exceptions.
+        """
+        shutil.rmtree(self._repo.path)
 
     def has(self, key):
         """Determine whether there is an entry for key in this repository.

@@ -1,6 +1,6 @@
 # GitDict
 
-*git for your dict*
+*git for json*
 
 ## Installation
 
@@ -15,8 +15,8 @@ be found [here][].
 ```python
 pip install pygit2
 pip install json_diff
-git clone https://github.com/talos/gitdict.git
-cd gitdict
+git clone https://github.com/talos/jsongit.git
+cd jsongit
 python setup.py install
 ```
 
@@ -30,12 +30,12 @@ nosetests
 ## Example
 
 ```python
->>> from gitdict import DictRepository
->>> repo = DictRepository('tmp')
->>> foo = repo.create('foo', {'roses': 'red'})
+>>> import jsongit
+>>> repo = jsongit.repo('tmp')
+>>> foo = repo.commit('foo', {'roses': 'red'})
 >>> foo
 GitDict(key=foo,dict={u'roses': u'red'},dirty=False)
->>> bar = repo.clone(foo, 'bar')
+>>> bar = repo.fast_forward('foo', 'bar')
 >>> foo['violets'] = 'blue'
 >>> foo
 GitDict(key=foo,dict={u'roses': u'red', 'violets': 'blue'},dirty=True)
@@ -54,4 +54,4 @@ GitDict(key=bar,dict={u'roses': u'red', u'violets': u'blue'},dirty=False)
 
 Documentation is on [Read the Docs][].
 
-  [Read the Docs]: http://gitdict.readthedocs.org
+  [Read the Docs]: http://jsongit.readthedocs.org

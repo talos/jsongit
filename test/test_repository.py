@@ -1,7 +1,23 @@
 import jsongit
 import helpers
+import os
 
 class TestJsonGitRepository(helpers.RepoTestCase):
+
+    def test_create_path_arg(self):
+        repo = jsongit.repo('test_create_repo')
+        self.assertTrue(os.path.isdir('test_create_repo'))
+        repo.destroy()
+
+    def test_create_path_kwarg(self):
+        repo = jsongit.repo(path='test_create_repo_kwarg')
+        self.assertTrue(os.path.isdir('test_create_repo_kwarg'))
+        repo.destroy()
+
+    def test_destroy_repo(self):
+        repo = jsongit.repo('test_destroy_repo')
+        repo.destroy()
+        self.assertFalse(os.path.isdir('test_destroy_repo'))
 
     def test_has(self):
         """
