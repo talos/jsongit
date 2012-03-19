@@ -8,6 +8,7 @@ import pygit2
 import json_diff
 import collections
 import functools
+import itertools
 import copy
 
 from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError
@@ -439,8 +440,8 @@ class DiffWrapper(object):
                     obj.insert(k, v)
                 else:
                     obj[k] = v
-
             return obj
+
 
 #     def conflicts(self, other):
 #         """Determine whether this JSON diff conflicts with another.
@@ -451,25 +452,6 @@ class DiffWrapper(object):
 #         :returns: A list of conflicts, of 0-length if there were none
 #         :rtype: list
 #         """
-#         conflicts = []
-#         if this.replace != other.replace:
-#             conflicts = (this.replace, other.replace)
-#         else:
-#             for verb_1, verb_2 in itertools.product(['append', 'update', 'remove'],
-#                                                     repeat=2):
-#                 mod_1 = getattr(diff_1, verb_1)
-#                 mod_2 = getattr(diff_2, verb_2)
-# 
-#                 # If verbs were the same, it's OK unless mod was different.
-#                 if verb_1 == verb_2:
-#                     if isinstance(mod_1, Diff) and isinstance(mod_2, Diff):
-#                         conflict[verb] = (mod_1, mod_2)
-# 
-#                 # Otherwise, it's a conflict no matter what
-#                 else:
-#                     conflict[verb]
-# 
-#         return conflict if len(conflict) else None
 
       #   for other_mod_key, other_mod_value in other_mods.items():
       #       if other_mod_key in self_mods:
@@ -523,6 +505,64 @@ class Diff(DiffWrapper):
         else:
             # if types differ we just replace
             super(Diff, self).__init__(obj2)
+
+
+class Conflict(object):
+    """An object wrapper for the conflict between two diffs.
+    """
+
+    def __init__(self, diff1, diff2):
+        if diff1.replace != diff2.replace:
+            self._conflict = {'replace': (diff1.replace, diff2.replace)}
+        else:
+            self._conflict = {'remove': {}, 'update': {}, 'append': {}}
+            for verb1, verb2 in itertools.product(['append', 'update', 'remove'],
+                                                    repeat=2):
+                mod1 = getattr(diff1, verb1) or {}
+                mod2 = getattr(diff2, verb2) or {}
+
+                # Isolate simultaneously modified keys
+                for k in (k for k in mod1 if k in mod2):
+                    # If verbs were the same, it's OK unless mod was different.
+                    if verb1 == verb2 and mod1[k] != mod2[k]:
+                        self._conflict[verb1][k] = (mod1[k], mod2[k])
+                    # Otherwise, it's a conflict no matter what
+                    else:
+                        self._conflict[verb1][k] = (mod1[k], None)
+                        self._conflict[verb2][k] = (None, mod2[k])
+
+    def __nonzero__(self):
+        return len(self._conflict) == 0
+
+    def __str__(self):
+        return self._conflict.__str__()
+
+    def __repr__(self):
+        return self._conflict.__repr__()
+
+    @property
+    def remove(self):
+        """A dict of key removal conflict tuples.
+        """
+        return self._conflict.get('remove', None)
+
+    @property
+    def update(self):
+        """A dict of key update conflict tuples.
+        """
+        return self._conflict.get('update', None)
+
+    @property
+    def append(self):
+        """A dict of key append conflict tuples.
+        """
+        return self._conflict.get('append', None)
+
+    @property
+    def replace(self):
+        """A tuple of the two diffs.
+        """
+        return self._conflict.get('replace', None)
 
 
 class Merge(object):

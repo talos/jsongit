@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from jsongit.models import Diff
+from jsongit.models import Diff, Conflict
 import helpers
 import itertools
 
@@ -126,3 +126,49 @@ class DiffTest(helpers.unittest.TestCase):
         self.assertEquals({'violets': 'blue'}, diff.update['flowers'].remove)
         self.assertEquals(b, diff.apply(a))
 
+    def test_diff_scalar_replace_no_conflict(self):
+        a = 'foo'
+        b = 'bar'
+        c = 'bar'
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertFalse(conflict)
+
+    def test_diff_scalar_replace_conflict(self):
+        a = 'foo'
+        b = 'bar'
+        c = 'baz'
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertEquals(('bar', 'baz'), conflict.replace)
+
+    def test_diff_array_append_conflict(self):
+        a = ['foo']
+        b = ['foo', 'bar']
+        c = ['foo', 'baz']
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        # self.assertEquals(('bar', 'baz'), conflict[1].append)
+        self.assertEquals({1: ('bar', 'baz')}, conflict.append)
+
+    def test_diff_array_update_conflict(self):
+        a = ['foo', 'bar']
+        b = ['foo', 'baz']
+        c = ['foo', 'bazzz']
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        # self.assertEquals(('baz', 'bazzz'), conflict[1].update)
+        self.assertEquals({1: ('baz', 'bazzz')}, conflict.update)
+
+    def test_diff_array_remove_conflict(self):
+        a = ['foo', 'bar']
+        b = ['foo', 'baz']
+        c = ['foo']
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        # self.assertEquals(('baz', None), conflict[1].update)
+        # self.assertEquals((None, 'bar'), conflict[1].remove)
+        self.assertEquals({1: ('baz', None)}, conflict.update)
+        self.assertEquals({1: (None, 'bar')}, conflict.remove)
+
+    def test_diff_dict_append_conflict(self):
+        a = {'roses': 'red'}
+        b = {'roses': 'red', 'violets': 'blue'}
+        c = {'roses': 'red', 'violets': 'magenta'}
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertEquals({'violets': ('blue', 'magenta')}, conflict.append)
