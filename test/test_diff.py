@@ -172,3 +172,19 @@ class DiffTest(helpers.unittest.TestCase):
         c = {'roses': 'red', 'violets': 'magenta'}
         conflict = Conflict(Diff(a, b), Diff(a, c))
         self.assertEquals({'violets': ('blue', 'magenta')}, conflict.append)
+
+    def test_diff_dict_update_conflict(self):
+        a = {'roses': 'red'}
+        b = {'roses': 'blue'}
+        c = {'roses': 'white'}
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertEquals({'roses': ('blue', 'white')}, conflict.update)
+
+    def test_diff_dict_remove_conflict(self):
+        a = {'roses': 'red', 'violets':'blue'}
+        b = {'roses': 'red', 'violets': 'magenta'}
+        c = {'roses': 'red'}
+        conflict = Conflict(Diff(a, b), Diff(a, c))
+        self.assertEquals({'violets': ('magenta', None)}, conflict.update)
+        self.assertEquals({'violets': (None, 'blue')}, conflict.remove)
+
