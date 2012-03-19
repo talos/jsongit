@@ -40,9 +40,6 @@ class Repository(object):
         else:
             raise BadKeyTypeError("%s must be a string to be a string." % key)
 
-    def _data_for_commit(self, commit):
-        return self._loads(self._repo[self._repo[commit.oid].tree[DATA].oid].data)
-
     def _raw_commit(self, key, data, message, parents, **kwargs):
         """
         :raises: NotJsonError, BadKeyTypeError
@@ -140,30 +137,28 @@ class Repository(object):
         ref = self._repo.lookup_reference(self._translate_key(key))
         return Commit(self, self._repo[ref.oid])
 
-    def get(self, key, autocommit=False, **kwargs):
-        """Obtain the data for a key.
+    def get(self, key=None, commit=None, autocommit=False):
+        """Obtain the :class:`Object` associated with a key or commit.  Looking
+        up a key is equivalent to looking up its head commit.  You must supply
+        a key or a commit.
 
-        :param key: The key to look up.
+        :param key: (optional) The key to look up.
         :type key: string
+        :param commit: (optional) The commit to look up.
+        :type commit: :class:`Commit`
         :param autocommit:
             (optional) Whether the retrieved data should commit when changed.
             Defaults to false.
         :type autocommit: boolean
-        :param default:
-            (optional) A default value to return if the key does not exist.
-        :type default: object
 
         :returns: the wrapped data
         :rtype: :class:`Object`
         :raises: KeyError if there is no entry for key
         """
-        if 'default' in kwargs:
-            try:
-                return Object(self, key, autocommit=autocommit)
-            except KeyError:
-                return kwargs['default']
-        else:
-            return Object(self, key, autocommit=autocommit)
+        if commit is None:
+            commit = self.head(key)
+        raw_data = self._repo[self._repo[commit.oid].tree[DATA].oid].data
+        return Object(self, key, commit, self._loads(raw_data), autocommit)
 
     def fast_forward(self, source, dest, autocommit=False):
         """Fast forward the data at dest.  Loses intervening commits if there
@@ -217,16 +212,16 @@ class Repository(object):
             return Merge(True, source_head, dest_head, "Same commit")
 
         # Test if a fast-forward is possible
-        source_commit_oids = [c.oid for c in self.walk(source,
-                                                       order=constants.GIT_SORT_TOPOLOGICAL)]
+        source_commit_oids = [c.oid for c in self.log(source,
+                                                      order=constants.GIT_SORT_TOPOLOGICAL)]
         if dest_head.oid in source_commit_oids:
             self.fast_forward(source, dest)
             return Merge(True, source_head, dest_head, "Fast forward")
 
         # Do a merge if there were no overlapping changes
         # First, find the shared parent
-        dest_commit_oids = [c.oid for c in self.walk(dest,
-                                                     order=constants.GIT_SORT_TOPOLOGICAL)]
+        dest_commit_oids = [c.oid for c in self.log(dest,
+                                                    order=constants.GIT_SORT_TOPOLOGICAL)]
         try:
             shared_commit_oid = (oid for oid in dest_commit_oids
                                  if oid in source_commit_oids).next()
@@ -234,13 +229,10 @@ class Repository(object):
             return Merge(False, source_head, dest_head, "No shared parent")
 
         # Now, see if the diffs conflict
-        shared_commit = self._repo[shared_commit_oid]
-        shared_data = self._data_for_commit(shared_commit)
-        source_data = self._data_for_commit(source_head)
-        dest_data = self._data_for_commit(dest_head)
+        shared_commit = Commit(self, self._repo[shared_commit_oid])
 
-        source_diff = Diff(shared_data, source_data)
-        dest_diff = Diff(shared_data, dest_data)
+        source_diff = Diff(shared_commit.object.value, source_head.object.value)
+        dest_diff = Diff(shared_commit.object.value, dest_head.object.value)
 
         conflict = Conflict(source_diff, dest_diff)
 
@@ -250,13 +242,13 @@ class Repository(object):
                                 conflict=conflict)
         # Sweet. we can apply all the diffs.
         else:
-            merged_data = dest_diff.apply(source_diff.apply(shared_data))
+            merged_data = dest_diff.apply(source_diff.apply(shared_commit.object.value))
             message = "Auto-merge from %s" % shared_commit.hex
             self._raw_commit(dest, merged_data, message,
                              [source_head.oid, dest_head.oid], **kwargs)
             return Merge(True, source_head, dest_head, message)
 
-    def walk(self, key, order=constants.GIT_SORT_TOPOLOGICAL):
+    def log(self, key, order=constants.GIT_SORT_TOPOLOGICAL):
         """ Traverse commits from the specified key.
 
         :param order:
@@ -274,7 +266,7 @@ class Repository(object):
 class Object(collections.MutableMapping, collections.MutableSequence):
 
     def dirtify(meth):
-        """Decorator that dirties up a JsonGitObject upon successful call.
+        """Decorator that dirties up the object upon successful completion.
         """
         @functools.wraps(meth)
         def wrapped(self, *args, **kwargs):
@@ -285,14 +277,16 @@ class Object(collections.MutableMapping, collections.MutableSequence):
             return retval
         return wrapped
 
-    def __init__(self, repo, key, autocommit):
+    def __init__(self, repo, key, head, value, autocommit):
 
         #: Whether changes should be automatically committed.
         self.autocommit = autocommit
 
         self._repo = repo
         self._key = key
-        self._read()
+        self._head = head
+        self._value = value
+        self._dirty = False
 
     def _value_meth(self, meth):
         cls = self.value.__class__
@@ -332,13 +326,14 @@ class Object(collections.MutableMapping, collections.MutableSequence):
                                                          self.dirty)
 
     def _read(self):
-        self._head = self._repo.head(self.key)
-        self._value = self._repo._data_for_commit(self._head)
+        updated = self._repo.get(self.key)
+        self._value = updated.value
+        self._head = updated.head
         self._dirty = False
 
     @property
     def repo(self):
-        """The :class:`JsonGitRepository` of this object.
+        """The :class:`Repository` of this object.
         """
         return self._repo
 
@@ -367,10 +362,18 @@ class Object(collections.MutableMapping, collections.MutableSequence):
         return self._head
 
     def commit(self, **kwargs):
-        """Convenience wrapper for :func:`Repository.commit`
+        """Convenience wrapper for :func:`Repository.commit` applying to this
+        key.  Resets the dirty flag.
         """
         self.repo.commit(self.key, self.value, **kwargs)
         self._dirty = False
+
+    def log(self, **kwargs):
+        """Convenience wrapper for :func:`Repository.log` applying to this key.
+        Returns the log based off this object's head, which may not be the
+        most recent commit for the key in the repository.
+        """
+        return self.repo.log(commit=self.head, **kwargs)
 
     def merge(self, other, **kwargs):
         """Convenience wrapper for :func:`Repository.commit`
@@ -396,35 +399,47 @@ class Commit(object):
     data.
     """
 
-    def __init__(self, repo, commit):
+    def __init__(self, repo, pygit2_commit):
         self._repo = repo
-        self._commit = commit
+        self._commit = pygit2_commit
 
     def __eq__(self, other):
         return self.oid == other.oid
 
     @property
-    def data(self):
-        """Obtain the data associated with this commit.
+    def object(self):
+        """Obtain the data object associated with this commit.
+        :rtype: :class:`Object`
         """
-        return self._repo._data_for_commit(self._commit)
+        return self._repo.get(commit=self)
 
     @property
     def oid(self):
         """The unique 20-byte ID of this Commit.
+        :rtype: string
         """
         return self._commit.oid
 
-#     def walk(self, *args, **kwargs)order=constants.GIT_SORT_TOPOLOGICAL):
-#         """Traverse related commits.
-# 
-#         :param order: Flags to order traversal.  Valid flags are in
-#         :mod:`constants`.
-#         :type order: number
-# 
-#         :returns: A generator to traverse commits.
-#         """
-#         return self._repo.walk(self)
+    @property
+    def hex(self):
+        """The unique 40-character hex representation of this commit's ID.
+        :rtype: string
+        """
+        return self._commit.hex
+
+    @property
+    def message(self):
+        """The message associated with this commit.
+        :rtype: string
+        """
+        return self._commit.message
+
+    @property
+    def author(self):
+        """The author of this commit.
+        :rtype: :class:`pygit2.Signature`
+        """
+        return self._commit.signature
 
 
 class DiffWrapper(object):
