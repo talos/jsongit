@@ -370,14 +370,9 @@ class DiffWrapper(object):
                 for k, v in update.viewitems():
                     update[k] = DiffWrapper(v)
             self._replace = None
-            self._remove = diff.get(Diff.REMOVE, None)
-            self._append = diff.get(Diff.APPEND, None)
-            self._update = diff.get(Diff.UPDATE, None)
         else:
-            self._replace = diff  # diff is none if there are no differences
-            self._remove = None
-            self._append = None
-            self._update = None
+            self._replace = diff
+            diff = {} if diff is None else diff
 
         self._diff = diff
 
@@ -397,19 +392,19 @@ class DiffWrapper(object):
     def remove(self):
         """A dict of removed keys and their values.
         """
-        return self._remove
+        return self._diff.get(Diff.REMOVE)
 
     @property
     def update(self):
         """A DiffWrapper
         """
-        return self._update
+        return self._diff.get(Diff.UPDATE)
 
     @property
     def append(self):
         """A dict of appended keys and their values.
         """
-        return self._append
+        return self._diff.get(Diff.APPEND)
 
     @property
     def replace(self):
@@ -479,8 +474,11 @@ class Conflict(object):
     """
 
     def __init__(self, diff1, diff2):
-        if diff1.replace != diff2.replace:
-            self._conflict = {'replace': (diff1.replace, diff2.replace)}
+        if diff1.replace or diff2.replace:
+            if diff1.replace == diff2.replace:
+                self._conflict = {}
+            else:
+                self._conflict = {'replace': (diff1.replace, diff2.replace)}
         else:
             self._conflict = {'remove': {}, 'update': {}, 'append': {}}
             for verb1, verb2 in itertools.product(['append', 'update', 'remove'],
@@ -511,25 +509,25 @@ class Conflict(object):
     def remove(self):
         """A dict of key removal conflict tuples.
         """
-        return self._conflict.get('remove', None)
+        return self._conflict.get('remove')
 
     @property
     def update(self):
         """A dict of key update conflict tuples.
         """
-        return self._conflict.get('update', None)
+        return self._conflict.get('update')
 
     @property
     def append(self):
         """A dict of key append conflict tuples.
         """
-        return self._conflict.get('append', None)
+        return self._conflict.get('append')
 
     @property
     def replace(self):
         """A tuple of the two diffs.
         """
-        return self._conflict.get('replace', None)
+        return self._conflict.get('replace')
 
 
 class Merge(object):
