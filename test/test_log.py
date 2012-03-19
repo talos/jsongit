@@ -46,3 +46,32 @@ class TestLog(RepoTestCase):
         self.assertEquals('step 4', gen.next().object.value)
         with self.assertRaises(StopIteration):
             gen.next()
+
+    def test_log_messages(self):
+        """Retrieves log messages.
+        """
+        self.repo.commit('foo', 'bar', message="I think this is right.")
+        self.repo.commit('foo', 'baz', message="Nope, it was wrong.")
+
+        gen = self.repo.log('foo')
+
+        self.assertEquals("Nope, it was wrong.", gen.next().message)
+        self.assertEquals("I think this is right.", gen.next().message)
+
+    def test_log_authors(self):
+        """Retrieves authors.
+        """
+        bob = jsongit.utils.signature('bob', 'bob@bob.com')
+        dan = jsongit.utils.signature('dan', 'dan@dan.com')
+        self.repo.commit('foo', 'bar', author=bob)
+        self.repo.commit('foo', 'baz', author=dan)
+
+        gen = self.repo.log('foo')
+
+        c = gen.next()
+        self.assertEquals("dan", c.author.name)
+        self.assertEquals("dan@dan.com", c.author.email)
+        c = gen.next()
+        self.assertEquals("bob", c.author.name)
+        self.assertEquals("bob@bob.com", c.author.email)
+

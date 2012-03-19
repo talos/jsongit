@@ -45,7 +45,7 @@ class Repository(object):
         :raises: NotJsonError, BadKeyTypeError
         """
         author = kwargs.pop('author', utils.signature(self._global_name,
-                                                        self._global_email))
+                                                      self._global_email))
         committer = kwargs.pop('committer', author)
         if kwargs:
             raise TypeError("Unknown keyword args %s" % kwargs)
@@ -439,7 +439,7 @@ class Commit(object):
         """The author of this commit.
         :rtype: :class:`pygit2.Signature`
         """
-        return self._commit.signature
+        return self._commit.author
 
 
 class DiffWrapper(object):
@@ -554,7 +554,7 @@ class Diff(DiffWrapper):
 
 
 class Conflict(object):
-    """An object wrapper for the conflict between two diffs.
+    """A class wrapper for the conflict between two diffs.
     """
 
     def __init__(self, diff1, diff2):
@@ -615,6 +615,8 @@ class Conflict(object):
 
 
 class Merge(object):
+    """A class wrapper for the results of a merge operation.
+    """
 
     def __init__(self, successful, source_commit, dest_commit, message,
                 conflict=None):
