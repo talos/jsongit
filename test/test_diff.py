@@ -80,3 +80,19 @@ class DiffTest(helpers.unittest.TestCase):
         diff = Diff({'roses': 'red', 'violets': 'blue'},
                     {'roses': 'red'})
         self.assertEquals({'violets': 'blue'}, diff.remove)
+
+    def test_diff_dict_nested_append(self):
+        diff = Diff({'flowers': {'roses': 'red'}},
+                    {'flowers': {'roses': 'red', 'violets': 'blue'}})
+        self.assertEquals({'violets': 'blue'}, diff.update['flowers'].append)
+
+    def test_diff_dict_nested_update(self):
+        diff = Diff({'flowers': {'roses': 'red', 'violets': 'blue'}},
+                    {'flowers': {'roses': 'red', 'violets': 'aqua'}})
+        self.assertEquals({'violets': 'aqua'}, diff.update['flowers'].update)
+
+    def test_diff_dict_nested_remove(self):
+        diff = Diff({'flowers': {'roses': 'red', 'violets': 'blue'}},
+                    {'flowers': {'roses': 'red'}})
+        self.assertEquals({'violets': 'blue'}, diff.update['flowers'].remove)
+
