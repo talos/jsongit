@@ -7,6 +7,6 @@ __author__ = 'John Krauss'
 __license__ = 'BSD'
 __copyright__ = 'Copyright 2012 John Krauss'
 
-from .repository import repo, NotJsonError, BadKeyTypeError
-from .utility import signature, global_config, NoGlobalSettingError
-from .object import DifferentRepoError
+from .api import repo
+from .utils import signature, global_config
+from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError, NoGlobalSettingError

@@ -9,14 +9,7 @@ from time import time as curtime
 from pygit2 import Signature
 import subprocess
 
-
-class NoGlobalSettingError(RuntimeError):
-    """Raised when the requested global setting does not exist.
-    """
-
-    def __init__(name):
-        super("Git on this system has no global setting for %s" % name)
-
+from .exceptions import NoGlobalSettingError
 
 def global_config(name):
     """Find a git --global setting

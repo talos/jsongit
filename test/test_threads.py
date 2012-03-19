@@ -4,9 +4,9 @@ import threading
 import random as global_random
 import string
 
-FEW = 5
-LOTS = 50
-MAX_DEPTH = 2
+FEW = 3
+LOTS = 10
+MAX_DEPTH = 1
 
 def random_number(r, j, l, min=-sys.maxint, max=sys.maxint):
     r.jumpahead(j + l)
@@ -72,13 +72,13 @@ class TestRepoThreading(helpers.RepoTestCase):
     def test_commit_lots_few(self):
         """Make several commits each.
         """
-        pool = self.do_with_threads(FEW, commit, self.repo, 20)
+        pool = self.do_with_threads(FEW, commit, self.repo, 10)
         self.join_threads(pool)
 
     def test_commit_lots_lots(self):
         """Make several commits each.
         """
-        pool = self.do_with_threads(LOTS, commit, self.repo, 20)
+        pool = self.do_with_threads(LOTS, commit, self.repo, 10)
         self.join_threads(pool)
 
 
