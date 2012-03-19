@@ -8,6 +8,7 @@ import pygit2
 import json_diff
 import collections
 import functools
+import copy
 
 from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError
 import utils
@@ -387,10 +388,6 @@ class DiffWrapper(object):
 
     def __getitem__(self, k):
         return self._diff[k]
-        # if self.replace is not None:
-        #     return self.replace[k]
-        # else:
-        #     raise TypeError("This DiffWrapper is not wrapping a replacement map.")
 
     def __eq__(self, other):
         return self._diff == other
@@ -403,7 +400,7 @@ class DiffWrapper(object):
 
     @property
     def update(self):
-        """A dict of updated keys and their values.
+        """A DiffWrapper
         """
         return self._update
 
@@ -419,21 +416,31 @@ class DiffWrapper(object):
         """
         return self._replace
 
-    def apply(self, obj):
-        """Modify an object with the changes in this diff.
+    def apply(self, original):
+        """Return an object modified with the changes in this diff.
 
-        :raises: TypeError
+        :param original: the object to apply the diff to.
+        :type original: list, dict, number, or string
+
+        :returns: the modified object
+        :rtype: list, dict, number, or string
         """
-        for k, v in self.remove.items():
-            obj.pop(k)
-        for k, v in self.update.items():
-            # Recursive update
-            if isinstance(v, Diff):
-                v.apply(obj[k])
-            else:
-                obj[k] = v
-        for k, v in self.append.items():
-            obj[k] = v
+        if self.replace:
+            return self.replace
+        else:
+            obj = copy.copy(original)
+            for k, v in (self.remove or {}).viewitems():
+                obj.pop(k)
+            for k, v in (self.update or {}).viewitems():
+                # Recursive application
+                obj[k] = v.apply(obj[k])
+            for k, v in (self.append or {}).viewitems():
+                if hasattr(obj, 'insert'):
+                    obj.insert(k, v)
+                else:
+                    obj[k] = v
+
+            return obj
 
 #     def conflicts(self, other):
 #         """Determine whether this JSON diff conflicts with another.
