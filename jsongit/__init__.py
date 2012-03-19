@@ -10,3 +10,4 @@ __copyright__ = 'Copyright 2012 John Krauss'
 from .api import repo
 from .utils import signature, global_config
 from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError, NoGlobalSettingError
+from .constants import GIT_SORT_NONE, GIT_SORT_TOPOLOGICAL, GIT_SORT_TIME, GIT_SORT_REVERSE

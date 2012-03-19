@@ -113,3 +113,5 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         for item in not_strings:
             with self.assertRaises(jsongit.BadKeyTypeError):
                 self.repo.commit(item, {'foo': 'bar'})
+
+

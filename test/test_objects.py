@@ -1,6 +1,6 @@
 from helpers import RepoTestCase
 
-class TestGitObject(RepoTestCase):
+class TestObject(RepoTestCase):
 
     def test_dirty(self):
         """Starts clean, then gets dirty.
