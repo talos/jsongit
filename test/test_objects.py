@@ -59,20 +59,20 @@ class TestGitObject(RepoTestCase):
         not merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.commit('bar', {'roses': 'red'})
+        bar = self.repo.fast_forward('foo', 'bar')
         foo['roses'] = 'pink'
         foo.commit()
         bar['roses'] = 'orange'
         bar.commit()
-        self.assertFalse(foo.merge(bar))
-        self.assertFalse(bar.merge(foo))
+        self.assertFalse(foo.merge(bar).successful)
+        self.assertFalse(bar.merge(foo).successful)
 
     def test_automatic_merge(self):
         """
         If the changes don't conflict, merges should be automatic.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.commit('bar', {'roses': 'red'})
+        bar = self.repo.fast_forward('foo', 'bar')
 
         foo['violets'] = 'blue'
         foo.commit()
@@ -80,7 +80,8 @@ class TestGitObject(RepoTestCase):
         bar['lilacs'] = 'purple'
         bar.commit()
 
-        self.assertTrue(foo.merge(bar))
+        merge = foo.merge(bar)
+        self.assertTrue(merge.successful)
         self.assertEqual({'roses':'red',
                           'violets':'blue',
                           'lilacs': 'purple'}, foo.value)

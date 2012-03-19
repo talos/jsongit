@@ -148,11 +148,11 @@ class Repository(object):
         """
         if 'default' in kwargs:
             try:
-                return object.Object(self, key, autocommit=autocommit)
+                return Object(self, key, autocommit=autocommit)
             except KeyError:
                 return kwargs['default']
         else:
-            return object.Object(self, key, autocommit=autocommit)
+            return Object(self, key, autocommit=autocommit)
 
     def fast_forward(self, source, dest, autocommit=False):
         """Fast forward the data at dest.  Loses intervening commits if there
@@ -223,13 +223,13 @@ class Repository(object):
         # Now, see if the diffs conflict
         shared_commit = self._repo[shared_commit_oid]
         shared_data = self._data_for_commit(shared_commit)
-        source_data = self._data_for_commit(dest_head)
+        source_data = self._data_for_commit(source_head)
         dest_data = self._data_for_commit(dest_head)
 
         source_diff = Diff(shared_data, source_data)
         dest_diff = Diff(shared_data, dest_data)
 
-        conflict = source_diff.conflict(dest_diff)
+        conflict = Conflict(source_diff, dest_diff)
 
         # No-go, the user's gonna have to figure this one out
         if conflict:
@@ -237,10 +237,9 @@ class Repository(object):
                                 conflict=conflict)
         # Sweet. we can apply all the diffs.
         else:
-            source_diff.apply(shared_data)
-            dest_diff.apply(shared_data)
+            merged_data = dest_diff.apply(source_diff.apply(shared_data))
             message = "Auto-merge from %s" % shared_commit.hex
-            self._raw_commit(dest, shared_commit_oid, message
+            self._raw_commit(dest, merged_data, message,
                              [source_head.oid, dest_head.oid], **kwargs)
             return Merge(True, source_head, dest_head, message)
 
@@ -306,8 +305,8 @@ class Object(collections.MutableMapping, collections.MutableSequence):
                                                          self.dirty)
 
     def _read(self):
-        head_id = self._repo._head_oid_for_key(self.key)
-        self._value = self._repo._data_for_commit_oid(head_id)
+        head = self._repo._head_for_key(self.key)
+        self._value = self._repo._data_for_commit(head)
         self._dirty = False
 
     @property
@@ -351,11 +350,10 @@ class Object(collections.MutableMapping, collections.MutableSequence):
         if not isinstance(other, Object):
             raise ValueError('Can only merge in another JsonGitObject')
         if other.repo == self.repo:
-            if self.repo.merge(other.key, self.key, **kwargs):
+            merge = self.repo.merge(other.key, self.key, **kwargs)
+            if merge.successful:
                 self._read()
-                return True
-            else:
-                return False
+            return merge
         else:
             raise DifferentRepoError("Cannot merge object in, it's in another \
                                      repo")
@@ -474,13 +472,11 @@ class Conflict(object):
     """
 
     def __init__(self, diff1, diff2):
+        self._conflict = {}
         if diff1.replace or diff2.replace:
-            if diff1.replace == diff2.replace:
-                self._conflict = {}
-            else:
+            if diff1.replace != diff2.replace:
                 self._conflict = {'replace': (diff1.replace, diff2.replace)}
         else:
-            self._conflict = {'remove': {}, 'update': {}, 'append': {}}
             for verb1, verb2 in itertools.product(['append', 'update', 'remove'],
                                                     repeat=2):
                 mod1 = getattr(diff1, verb1) or {}
@@ -488,16 +484,18 @@ class Conflict(object):
 
                 # Isolate simultaneously modified keys
                 for k in (k for k in mod1 if k in mod2):
+                    self._conflict.setdefault(verb1, {})
                     # If verbs were the same, it's OK unless mod was different.
                     if verb1 == verb2 and mod1[k] != mod2[k]:
                         self._conflict[verb1][k] = (mod1[k], mod2[k])
                     # Otherwise, it's a conflict no matter what
                     else:
                         self._conflict[verb1][k] = (mod1[k], None)
+                        self._conflict.setdefault(verb2, {})
                         self._conflict[verb2][k] = (None, mod2[k])
 
     def __nonzero__(self):
-        return len(self._conflict) == 0
+        return len(self._conflict) != 0
 
     def __str__(self):
         return self._conflict.__str__()
@@ -554,4 +552,8 @@ class Merge(object):
     @property
     def conflict(self):
         return self._conflict
+
+    @property
+    def message(self):
+        return self._message
 
