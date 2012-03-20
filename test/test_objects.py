@@ -64,8 +64,8 @@ class TestObject(RepoTestCase):
         foo.commit()
         bar['roses'] = 'orange'
         bar.commit()
-        self.assertFalse(foo.merge(bar).successful)
-        self.assertFalse(bar.merge(foo).successful)
+        self.assertFalse(foo.merge(bar).success)
+        self.assertFalse(bar.merge(foo).success)
 
     def test_automatic_merge(self):
         """
@@ -81,7 +81,7 @@ class TestObject(RepoTestCase):
         bar.commit()
 
         merge = foo.merge(bar)
-        self.assertTrue(merge.successful)
+        self.assertTrue(merge.success)
         self.assertEqual({'roses':'red',
                           'violets':'blue',
                           'lilacs': 'purple'}, foo.value)
