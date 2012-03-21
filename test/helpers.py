@@ -18,7 +18,7 @@ class RepoTestCase(unittest.TestCase):
         if os.path.lexists(PATH):
             self.fail("Can't use %s for test repo, something is there." % PATH)
         else:
-            self.repo = jsongit.repo(path='test_jsongit_repo')
+            self.repo = jsongit.init(path='test_jsongit_repo')
 
     def tearDown(self):
         """

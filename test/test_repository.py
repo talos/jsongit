@@ -2,21 +2,23 @@ import jsongit
 import helpers
 import os
 import json
+import pygit2
+import shutil
 
 class TestJsonGitRepository(helpers.RepoTestCase):
 
     def test_create_path_arg(self):
-        repo = jsongit.repo('test_create_repo')
+        repo = jsongit.init('test_create_repo')
         self.assertTrue(os.path.isdir('test_create_repo'))
         repo.destroy()
 
     def test_create_path_kwarg(self):
-        repo = jsongit.repo(path='test_create_repo_kwarg')
+        repo = jsongit.init(path='test_create_repo_kwarg')
         self.assertTrue(os.path.isdir('test_create_repo_kwarg'))
         repo.destroy()
 
     def test_destroy_repo(self):
-        repo = jsongit.repo('test_destroy_repo')
+        repo = jsongit.init('test_destroy_repo')
         repo.destroy()
         self.assertFalse(os.path.isdir('test_destroy_repo'))
 
@@ -165,15 +167,16 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """
         not_strings = [lambda x: x, 4, None, ['foo', 'bar'], {'foo': 'bar'}]
         for item in not_strings:
-            with self.assertRaises(jsongit.BadKeyTypeError):
+            with self.assertRaises(jsongit.InvalidKeyError):
                 self.repo.commit(item, {'foo': 'bar'})
 
     def test_all_keys_in_master(self):
         """All keys should be real blobs in the repo's head.
         """
-        pygit2_repo = self.repo._repo
         self.repo.commit('roses', 'red')
         self.repo.commit('violets', 'blue')
+
+        pygit2_repo = self.repo._repo
         head_ref = pygit2_repo.lookup_reference('head').resolve()
         head_commit = pygit2_repo[head_ref.oid]
         tree = head_commit.tree
@@ -182,4 +185,45 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.assertEquals(json.dumps('red'), tree['roses'].to_object().data)
         self.assertEquals(json.dumps('blue'), tree['violets'].to_object().data)
 
+    def test_overlapping_paths(self):
+        """Should throw error if key overlaps with directory.
+        """
+        self.repo.commit('path/to', 'foo')
+        with self.assertRaises(jsongit.InvalidKeyError):
+            self.repo.commit('path/to/key', 'bar')
 
+    def test_optional_absolute(self):
+        """Absolute-ish path should make no difference.
+        """
+        self.repo.commit('/absolute', 'foo')
+        self.assertEquals('foo', self.repo.get('/absolute').value)
+        self.assertEquals('foo', self.repo.get('absolute').value)
+
+    def test_no_directory_path(self):
+        """Should not be able to store data in a directory.
+        """
+        with self.assertRaises(jsongit.InvalidKeyError):
+            self.repo.commit('path/to/directory/', 'foo')
+
+    def xtest_nonbare_repo_master_tree(self):
+        """Should be able to work with an existing non-bare repo.  Commits
+        should appear as standard blobs in the master tree.
+        """
+        PATH = 'nonbare'
+        if os.path.lexists(PATH):
+            self.fail("Cannot run test, something exists at %s" % PATH)
+
+        try:
+            nonbare = pygit2.init_repository(PATH, False)
+
+            repo = jsongit.init(repo=nonbare)
+            repo.commit('foo', 'bar')
+            repo.commit('path/to/file.json', {'roses': 'red', 'violets': 'blue'})
+
+            # equivalent to checkout master
+            head = nonbare.lookup_reference('head').resolve()
+            # index = nonbare.index
+            # index.read_tree(nonbare[head.oid].tree.oid)
+            # index.write()
+        finally:
+            shutil.rmtree(PATH)

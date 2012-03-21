@@ -12,13 +12,12 @@ import functools
 import shutil
 import itertools
 
-from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError
+from .exceptions import NotJsonError, InvalidKeyError, DifferentRepoError
 from .wrappers import Commit, Diff, Conflict, Merge
 import constants
 import utils
 
 # The name of the only blob within the special commit tree.
-#JSONGIT = '.jsongit'
 
 class Repository(object):
     def __init__(self, repo, dumps, loads):
@@ -35,18 +34,23 @@ class Repository(object):
         """The keys of a Repository are also references to the head commit
         for that key.  This translates keys to the appropriate path (in
         /refs/heads/jsongit/).
+
+        :raises: InvalidKeyError
         """
-        if isinstance(key, basestring):
-            return 'refs/heads/jsongit/%s' % key
+        if not isinstance(key, basestring):
+            raise InvalidKeyError("%s must be a string to be a key." % key)
+        elif key[-1] == '.' or key[-1] == '/':
+            raise InvalidKeyError("Key '%s' should not end in . or /" % key)
         else:
-            raise BadKeyTypeError("%s must be a string to be a key." % key)
+            return 'refs/heads/jsongit/%s' % key
 
     def _insert_repo_entry(self, key, blob_id, author, committer, message):
         """Insert a new piece of data into the repo's tree.
         """
         # TreeBuilder doesn't support inserting into trees, so we roll our own
+        head_target = self._repo.lookup_reference('head').target
         try:
-            head_commit = self._repo[self._repo.lookup_reference('head').resolve().oid]
+            head_commit = self._repo[self._repo.lookup_reference(head_target).oid]
             head_tree = head_commit.tree
             tree_data = b''.join([
                 b"%o %s\x00%s" % (e.attributes, e.name, e.oid)  # octal attributes
@@ -60,7 +64,15 @@ class Repository(object):
         tree_data = tree_data + b"100644 %s\x00%s" % (key, blob_id)
 
         tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, tree_data)
-        self._repo.create_commit('head', author, committer, message, tree_id, parents)
+        self._repo.index.read_tree(tree_id)
+        self._repo.index.write()
+        # idx = self._repo.index
+        # idx.read_tree(tree_id)
+        # tree_id = idx.write_tree()
+        # idx.clear()
+        # idx.read_tree(tree_id)
+        # idx.write()
+        self._repo.create_commit(head_target, author, committer, message, tree_id, parents)
 
     def commit(self, key, data, **kwargs):
         """Commit new data to the key.  Maintains relation to parent commits.
@@ -77,7 +89,7 @@ class Repository(object):
             (optional) The signature for the author of the first commit.
             Defaults to global author.
         :param message:
-            (optional) Message for first commit.  Defaults to "first commit" if
+            (optional) Message for first commit.  Defaults to "adding [key]" if
             there was no prior value.
         :type message: string
         :param author:
@@ -96,9 +108,9 @@ class Repository(object):
         :returns: the committed data, extended with JsonGit methods
         :rtype: :class:`Object`
 
-        :raises: NotJsonError, BadKeyTypeError
+        :raises: NotJsonError, InvalidKeyError
         """
-        message = kwargs.pop('message', '' if self.has(key) else 'first commit')
+        message = kwargs.pop('message', '' if self.has(key) else 'adding %s' % key)
         parents = kwargs.pop('parents', [self.get(key).head] if self.has(key) else [])
         author = kwargs.pop('author', utils.signature(self._global_name,
                                                       self._global_email))
@@ -117,13 +129,17 @@ class Repository(object):
         self._insert_repo_entry(key, blob_id, author, committer, message)
 
         tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, b"100644 %s\x00%s" % (key, blob_id))
-        self._repo.create_commit(self._key2ref(key), author, committer,
-                                 message, tree_id,
-                                 [parent.oid for parent in parents])
-        #  update head ref
-        # self._repo.lookup_reference('head').target = key_ref
-
-        return self.get(key, autocommit=autocommit)
+        try:
+            self._repo.create_commit(self._key2ref(key), author, committer,
+                                     message, tree_id,
+                                     [parent.oid for parent in parents])
+        except pygit2.GitError as e:
+            if e.message.startswith('Failed to create reference'):
+                raise InvalidKeyError(e)
+            else:
+                raise e
+        else:
+            return self.get(key, autocommit=autocommit)
 
     def destroy(self):
         """Erase this Git repository entirely.  This will remove its directory.
@@ -142,7 +158,7 @@ class Repository(object):
         :returns: whether there is an entry
         :rtype: boolean
 
-        :raises: BadKeyTypeError, KeyError
+        :raises: InvalidKeyError, KeyError
         """
         try:
             self._repo.lookup_reference(self._key2ref(key))
@@ -195,7 +211,7 @@ class Repository(object):
 
         :returns: the wrapped data at dest
         :rtype: :class:`Object`
-        :raises: KeyError, BadKeyTypeError
+        :raises: KeyError, InvalidKeyError 
         """
         if commit is None:
             commit = self.get(key).head
