@@ -1,37 +1,46 @@
 JsonGit
 =======
 
-Use Git as a key-value store that can track and merge arbitrary data in Python. 
+*git your dict*
+
+Use Git as a key-value store that can track and merge arbitrary data in Python::
+
+    >>> r = jsongit.init('repo')
+    >>> foo = r.commit('foo', {})
+    >>> bar = r.merge('bar', 'foo').result
+    >>> foo['roses'] = 'red'
+    >>> bar['violets'] = 'blue'
+    >>> foo.commit()
+    >>> bar.commit()
+    >>> foo.merge(bar).message
+    u'Auto-merge from ee0badced484570b36bb219ad81567098e9995a7'
+    >>> foo.value
+    {u'roses': u'red', u'violets': u'blue'}
+    >>> log = foo.log()
+    >>> pprint([commit.object.value for commit in log])
+    [{u'roses': u'red', u'violets': u'blue'},
+     {u'violets': u'blue'},
+     {},
+     {u'roses': u'red'},
+     {}]
+    ...
 
 Installation
 ------------
 
-JsonGit requires that you have installed
-`libgit2 <http://libgit2.github.com/>`_.  You will also need
-`pygit2 <https://github.com/libgit2/pygit2>`_ and
-`json_diff <https://fedorahosted.org/json_diff/>`_, which are available on
-PyPI.
+Libgit2_ is used to build and modify the git repository. You can find
+instructions for installing it here_.
 
-Example
--------
+.. _Libgit2: http://libgit2.github.com/
+.. _here: http://libgit2.github.com/#install
 
-::
+Pip handles the rest::
 
-    >>> r = jsongit.repo('repo')
-    >>> foo = r.commit('foo', {'roses': 'red'})
-    >>> bar = r.fast_forward('bar', 'foo')
-    >>> foo['violets'] = 'blue'
-    >>> foo.commit()
-    >>> bar['lilacs'] = 'purple'
-    >>> bar.commit()
-    >>> merge = foo.merge(bar)
-    >>> foo.value
-    {u'roses': u'red', u'lilacs': u'purple', u'violets': u'blue'}
-    >>> merge.message
-    u'Auto-merge from dc1ce3d1cc47afd8c5029efccd398d415675d596'
-    ...
+    $ pip install jsongit
 
 Documentation
 -------------
 
-Documentation is on `Read the Docs <http://jsongit.readthedocs.org>`_.
+Documentation is on `Read the Docs`_.
+
+.. _Read the Docs: http://jsongit.readthedocs.org/

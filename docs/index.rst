@@ -8,7 +8,7 @@ JsonGit: Git Your Dict
 
 Release v\ |version|. (:ref:`Installation <install>`)
 
-Use git_ as a key-value store that can track and merge arbitrary data in
+Use git_ as a key-value store that stores, tracks and merge arbitrary data in
 Python.
 
 .. _git: http://git-scm.com/
@@ -19,14 +19,20 @@ Python.
     >>> foo = r.commit('foo', {})
     >>> bar = r.merge('bar', 'foo').result
     >>> foo['roses'] = 'red'
+    >>> bar['violets'] = 'blue'
     >>> foo.commit()
-
-    >>> r.commit('foo', {'roses': 'red', 'violets': 'blue'})
-    >>> r.commit('bar', {'roses': 'red', 'lilacs': 'purple'})
-    >>> r.merge('bar', 'foo')
-    u'Auto-merge from dc1ce3d1cc47afd8c5029efccd398d415675d596'
-    >>> r.get('bar')
-    {u'roses': u'red', u'lilacs': u'purple', u'violets': u'blue'}
+    >>> bar.commit()
+    >>> foo.merge(bar).message
+    u'Auto-merge from ee0badced484570b36bb219ad81567098e9995a7'
+    >>> foo.value
+    {u'roses': u'red', u'violets': u'blue'}
+    >>> log = foo.log()
+    >>> pprint([commit.object.value for commit in log])
+    [{u'roses': u'red', u'violets': u'blue'},
+     {u'violets': u'blue'},
+     {},
+     {u'roses': u'red'},
+     {}]
     ...
 
 JsonGit layers above the Python packages pygit2_ and json_diff_ to give you
@@ -52,13 +58,11 @@ Features
 Usage
 -----
 
-Learn why you would want to use JsonGit, how to install it, and how to use it
-with step-by-step guides.
+Learn how to install and use JsonGit.
 
 .. toctree ::
    :maxdepth: 1
 
-   usage/why
    usage/install
    usage/start
 
