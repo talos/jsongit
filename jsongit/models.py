@@ -196,47 +196,9 @@ class Repository(object):
         raw_data = self._repo[self._repo[commit.oid].tree[commit.key].oid].data
         return Object(self, commit, self._loads(raw_data), autocommit)
 
-    def fast_forward(self, dest, key=None, commit=None, **kwargs):
-        """Fast forward the key at dest.  Loses intervening commits if there
-        were any.  Creates an object there if it does not yet exist.
-
-        :param dest: the key to be fast forwarded
-        :type dest: string
-        :param key:
-            (optional) the key of the data to fast forward to, defaulting to
-            the head commit.
-        :type key: string
-        :param commit: (optional) the commit to fast forward to.
-        :type commit: :class:`Commit`
-
-        :returns: the wrapped data at dest
-        :rtype: :class:`Object`
-        :raises: KeyError, InvalidKeyError 
-        """
-        if commit is None:
-            commit = self.get(key).head
-        if commit.key == dest:
-            raise ValueError('Cannot fast forward key to itself')
-
-        self.commit(dest, commit.object.value,
-                    message="Fast forwarding %s from %s" % (dest, commit.key),
-                    parents=[commit])
-        # blob_id = self._repo[commit.oid].tree[0].oid
-        # author = utils.signature(self._global_name, self._global_email)
-        # self._insert_repo_entry(dest, blob_id, author, author,
-        #                        "Fast forwarding %s from %s" % (dest, commit.key))
-        # #self.commit(dest, commit.object.value, parents=[commit], **kwargs)
-        # dest_ref = self._key2ref(dest)
-        # # TODO: require a force flag in this case?
-        # if self.has(dest):
-        #     self._repo.lookup_reference(dest_ref).delete()
-        # self._repo.create_reference(dest_ref, commit.oid)
-
-        return self.get(dest, **kwargs)
-
     def merge(self, dest, key=None, commit=None, **kwargs):
-        """Try to merge two keys together.  If possible, will fast-forward,
-        otherwise, will try to merge in the intervening changes.
+        """Try to merge two keys together.  Will create a new value at dest if
+        it does not exist, whose first commit will point to the merge source.
 
         :param dest: the key to receive the merge
         :type dest: string
@@ -260,15 +222,20 @@ class Repository(object):
         """
         if commit is None:
             commit = self.get(key).head
+        if commit.key == dest:
+            raise ValueError('Cannot merge a key with itself')
+
+        # copying
+        if not self.has(dest):
+            message = "Copying %s from %s" % (dest, commit.key)
+            obj = self.commit(dest, commit.object.value, message=message,
+                              parents=[commit])
+            return Merge(True, commit, obj.head, message, result=obj)
+
         dest_head = self.get(dest).head
         # No difference
         if commit.oid == dest_head.oid:
-            return Merge(True, commit, dest_head, "Same commit")
-
-        # Test if a fast-forward is possible
-        if any(dest_head.oid in c.oid for c in self.log(commit=commit)):
-            self.fast_forward(dest, commit=commit)
-            return Merge(True, commit, dest_head, "Fast forward")
+            return Merge(True, commit, dest_head, "Same commit", result=commit.object)
 
         # Do a merge if there were no overlapping changes
         # First, find the shared parent
@@ -293,8 +260,8 @@ class Repository(object):
             merged_data = dest_diff.apply(source_diff.apply(shared_commit.object.value))
             message = "Auto-merge from %s" % shared_commit.hex
             parents = [dest_head, commit]
-            self.commit(dest, merged_data, message=message, parents=parents, **kwargs)
-            return Merge(True, commit, dest_head, message)
+            obj = self.commit(dest, merged_data, message=message, parents=parents, **kwargs)
+            return Merge(True, commit, dest_head, message, result=obj)
 
     def log(self, key=None, commit=None, order=constants.GIT_SORT_TOPOLOGICAL):
         """ Traverse commits from the specified key or commit.  Must specify
@@ -376,6 +343,9 @@ class Object(collections.MutableMapping, collections.MutableSequence):
     @dirtify
     def insert(self, item):
         return self._value_meth('insert')(self.value, item)
+
+    def __str__(self):
+        return self._value
 
     def __repr__(self):
         return '%s(key=%s,value=%s,dirty=%s)' % (

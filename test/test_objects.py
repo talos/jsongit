@@ -40,17 +40,19 @@ class TestObject(RepoTestCase):
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
         bar = self.repo.commit('bar', {'violets': 'blue'})
-        self.assertFalse(foo.merge(bar))
-        self.assertFalse(bar.merge(foo))
+        self.assertFalse(foo.merge(bar).success)
+        self.assertFalse(bar.merge(foo).success)
 
-    def test_fast_forward_merge(self):
-        """If there are no intervening commits, this merge should be simple.
+    def test_simple_merge(self):
+        """If there's a shared parent and no intervening commits, should
+        merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('bar', 'foo')
-        bar['violets'] = 'blue'
-        bar.commit()
-        self.assertTrue(foo.merge(bar))
+        bar = self.repo.merge('bar', 'foo').result
+        foo['violets'] = 'blue'
+        foo.commit()
+        merge = bar.merge(foo)
+        self.assertTrue(merge.success)
         self.assertEqual({'roses': 'red', 'violets': 'blue'}, bar.value)
 
     def test_merge_conflict(self):
@@ -59,7 +61,7 @@ class TestObject(RepoTestCase):
         not merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('bar', 'foo')
+        bar = self.repo.merge('bar', 'foo').result
         foo['roses'] = 'pink'
         foo.commit()
         bar['roses'] = 'orange'
@@ -72,7 +74,7 @@ class TestObject(RepoTestCase):
         If the changes don't conflict, merges should be automatic.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.fast_forward('bar', 'foo')
+        bar = self.repo.merge('bar', 'foo').result
 
         foo['violets'] = 'blue'
         foo.commit()

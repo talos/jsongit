@@ -98,51 +98,44 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         with self.assertRaises(IndexError):
             self.repo.get('obj', back=2)
 
-    def test_fast_forward_default(self):
-        """ Copy an existing object with default (key) fast forward.
+    def test_copy(self):
+        """ Copy an existing object using merge.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('bar', 'foo')
+        self.repo.merge('bar', 'foo')
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
-    def test_fast_forward_key(self):
-        """Fast forward explicitly to a key.
+    def test_merge_commit(self):
+        """Merge explicitly to a commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('bar', key='foo')
+        self.repo.merge('bar', commit=self.repo.get('foo').head)
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
-    def test_fast_forward_commit(self):
-        """Fast forward explicitly to a commit.
-        """
-        self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('bar', commit=self.repo.get('foo').head)
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
-
-    def test_fast_forward_commit_old(self):
+    def test_merge_old(self):
         """Fast forward explicitly to an older commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('foo', {'violets': 'blue'})
-        self.repo.fast_forward('bar', commit=self.repo.get('foo', back=1).head)
+        self.repo.merge('bar', commit=self.repo.get('foo', back=1).head)
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
-    def test_fast_forward_already_existing(self):
+    def test_merge_already_existing(self):
         """
-        Fast forwarding should overwrite already existing value.
+        Merge should not overwrite independent already existing value.
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('bar', {'violets': 'blue'})
-        self.repo.fast_forward('bar', 'foo')
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+        self.repo.merge('bar', 'foo')
+        self.assertEqual({'violets': 'blue'}, self.repo.get('bar'))
 
-    def test_clone_self(self):
+    def test_merge_self(self):
         """
-        Fast forwarding to identical keys should raise an error.
+        Merging identical keys should raise an error.
         """
         self.repo.commit('foo', {'roses': 'red'})
         with self.assertRaises(ValueError):
-            self.repo.fast_forward('foo', 'foo')
+            self.repo.merge('foo', 'foo')
 
     def test_commit_updating(self):
         """

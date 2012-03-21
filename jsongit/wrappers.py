@@ -191,7 +191,10 @@ class Diff(DiffWrapper):
 
     def __init__(self, obj1, obj2):
         if isinstance(obj2, obj1.__class__):
-            diff = json_diff.Comparator()._compare_elements(obj1, obj2)
+            c = json_diff.Comparator()
+            c.obj1 = obj1
+            c.obj2 = obj2
+            diff = c._compare_elements(obj1, obj2)
             super(Diff, self).__init__(diff)
         else:
             # if types differ we just replace
@@ -263,15 +266,17 @@ class Merge(object):
     """A class wrapper for the results of a merge operation.
     """
 
-    def __init__(self, success, original, merged, message, conflict=None):
+    def __init__(self, success, original, merged, message, result=None,
+                 conflict=None):
         self._success = success
         self._message = message
         self._original = original
         self._merged = merged
         self._conflict = conflict
+        self._result = result
 
     def __str__(self):
-        return self.__repr__()
+        return self.message
 
     def __repr__(self):
         return "%s(success=%s,message=%s,conflict=%s,original=%s,merged=%s)" % (
@@ -280,6 +285,16 @@ class Merge(object):
 
     def __nonzero__(self):
         return self.success
+
+    @property
+    def result(self):
+        """
+        :returns:
+            The :class:`Object` resulting from this merge, or None if
+            there was a conflict.
+        :rtype: :class:`Object`
+        """
+        return self._result
 
     @property
     def success(self):

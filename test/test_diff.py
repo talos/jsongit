@@ -84,6 +84,15 @@ class DiffTest(helpers.unittest.TestCase):
         self.assertEquals({1: 'baz'}, diff.update[1].remove)
         self.assertEquals(b, diff.apply(a))
 
+    def test_diff_empty_dict(self):
+        """json_diff bugs out on empty dicts normally.
+        """
+        a = {}
+        b = {'key': 'value'}
+        diff = Diff(a, b)
+        self.assertEquals({'key': 'value'}, diff.append)
+        self.assertEquals(b, diff.apply(a))
+
     def test_diff_dict_append(self):
         a = {'roses': 'red'}
         b = {'roses': 'red', 'violets': 'blue'}
@@ -213,4 +222,3 @@ class DiffTest(helpers.unittest.TestCase):
         self.assertEquals({'violets': ('magenta', None)}, conflict.update)
         self.assertEquals({'violets': (None, 'blue')}, conflict.remove)
 
-    

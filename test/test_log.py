@@ -81,7 +81,7 @@ class TestLog(RepoTestCase):
         Changes should be registered at point they are merged.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('bar', 'foo')
+        self.repo.merge('bar', 'foo')
         self.repo.commit('foo', {'roses': 'red', 'violets': 'blue'})
         self.repo.commit('bar', {'roses': 'red', 'lilacs': 'purple'})
         merge = self.repo.merge('bar', 'foo')

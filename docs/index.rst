@@ -15,18 +15,18 @@ Python.
 
 ::
 
-    >>> r = jsongit.repo('repo')
-    >>> foo = r.commit('foo', {'roses': 'red'})
-    >>> bar = r.fast_forward('bar', 'foo')
-    >>> foo['violets'] = 'blue'
+    >>> r = jsongit.init('repo')
+    >>> foo = r.commit('foo', {})
+    >>> bar = r.merge('bar', 'foo').result
+    >>> foo['roses'] = 'red'
     >>> foo.commit()
-    >>> bar['lilacs'] = 'purple'
-    >>> bar.commit()
-    >>> merge = foo.merge(bar)
-    >>> foo.value
-    {u'roses': u'red', u'lilacs': u'purple', u'violets': u'blue'}
-    >>> merge.message
+
+    >>> r.commit('foo', {'roses': 'red', 'violets': 'blue'})
+    >>> r.commit('bar', {'roses': 'red', 'lilacs': 'purple'})
+    >>> r.merge('bar', 'foo')
     u'Auto-merge from dc1ce3d1cc47afd8c5029efccd398d415675d596'
+    >>> r.get('bar')
+    {u'roses': u'red', u'lilacs': u'purple', u'violets': u'blue'}
     ...
 
 JsonGit layers above the Python packages pygit2_ and json_diff_ to give you
