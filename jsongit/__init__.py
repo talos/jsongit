@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 __title__ = 'jsongit'
-__version__ = '0.0.3'
-__build__ = 0x000003
 __author__ = 'John Krauss'
 __license__ = 'BSD'
 __copyright__ = 'Copyright 2012 John Krauss'

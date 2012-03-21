@@ -1,26 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import jsongit
 
 try:
+    # Install prereqs here and now if we can.
     from setuptools import setup
+    kw = { 'install_requires': [
+        'pygit2>=0.16.1',
+        'json_diff>=1.2.9'
+    ] }
 except ImportError:
     from distutils.core import setup
+    print 'No setuptools.  Do\n\n    $ pip install pygit2\n    $ pip install json_diff\n\nto install dependencies.'
+    kw = {}
 
-required = ['pygit2','json_diff']
+execfile('jsongit/version.py')
+
 packages = ['jsongit']
 
 setup(
     name='jsongit',
-    version=jsongit.__version__,
+    version=__version__,
     description='Git for JSON',
     long_description=open('README.rst').read(),
     author='John Krauss',
     author_email='john@accursedware.com',
     url='http://github.com/talos/jsongit',
     packages=packages,
-    install_requires=required,
     license='BSD',
     classifiers=(
         'Development Status :: 3 - Alpha',
@@ -31,4 +37,5 @@ setup(
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7'
     ),
+    **kw
 )
