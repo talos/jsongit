@@ -11,12 +11,13 @@ import itertools
 import copy
 
 class Commit(object):
-    """A wrapper around :class:`pygit2.Commit` that provides easier access to
-    data.
+    """A wrapper around :class:`pygit2.Commit` that links to a specific key
+    in the repo.
     """
 
     def __init__(self, repo, pygit2_commit):
         self._repo = repo
+        self._key = pygit2_commit.tree[0].name
         self._commit = pygit2_commit
 
     def __eq__(self, other):
@@ -30,38 +31,60 @@ class Commit(object):
 
     @property
     def object(self):
-        """Obtain the data object associated with this commit.
+        """
+        :returns: the data object associated with this commit.
         :rtype: :class:`Object`
         """
         return self._repo.get(commit=self)
 
     @property
+    def key(self):
+        """
+        :returns: the key associated with this commit.
+        :rtype: string
+        """
+        return self._key
+
+    @property
     def oid(self):
-        """The unique 20-byte ID of this Commit.
+        """
+        :returns: The unique 20-byte ID of this Commit.
         :rtype: string
         """
         return self._commit.oid
 
     @property
     def hex(self):
-        """The unique 40-character hex representation of this commit's ID.
+        """
+        :returns: The unique 40-character hex representation of this commit's ID.
         :rtype: string
         """
         return self._commit.hex
 
     @property
     def message(self):
-        """The message associated with this commit.
+        """
+        :returns: The message associated with this commit.
         :rtype: string
         """
         return self._commit.message
 
     @property
     def author(self):
-        """The author of this commit.
+        """
+        :returns: The author of this commit.
         :rtype: :class:`pygit2.Signature`
         """
         return self._commit.author
+
+    # @property
+    # def parents(self):
+    #     """
+    #     :returns: the parents of this commit.
+    #     :rtype: list of :class:`Object`
+    #     """
+    #     #TODO might generate commits with the wrong key?
+    #     return [Commit(self._repo, self.key, c) for c in self._commit.parents]
 
 
 class DiffWrapper(object):
@@ -251,7 +274,7 @@ class Merge(object):
         return self.__repr__()
 
     def __repr__(self):
-        return "%s(success=%s,message=%s,conflict=%soriginal=%s,merged=%s)" % (
+        return "%s(success=%s,message=%s,conflict=%s,original=%s,merged=%s)" % (
             type(self).__name__, self.success, self.message, self.conflict,
             self.original, self.merged)
 

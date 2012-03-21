@@ -10,15 +10,15 @@ import pygit2
 import collections
 import functools
 import shutil
+import itertools
 
 from .exceptions import NotJsonError, BadKeyTypeError, DifferentRepoError
 from .wrappers import Commit, Diff, Conflict, Merge
 import constants
 import utils
 
-# The name of the only blob within the tree.
-DATA = 'data'
-
+# The name of the only blob within the special commit tree.
+#JSONGIT = '.jsongit'
 
 class Repository(object):
     def __init__(self, repo, dumps, loads):
@@ -31,16 +31,38 @@ class Repository(object):
     def __eq__(self, other):
         return self._repo.path == other._repo.path
 
-    def _translate_key(self, key):
-        """The keys of a Repository are actually references to a head commit.
-        This translates keys to the appropriate path (in /refs/heads/).
+    def _key2ref(self, key):
+        """The keys of a Repository are also references to the head commit
+        for that key.  This translates keys to the appropriate path (in
+        /refs/heads/jsongit/).
         """
         if isinstance(key, basestring):
-            return 'refs/heads/%s' % key
+            return 'refs/heads/jsongit/%s' % key
         else:
-            raise BadKeyTypeError("%s must be a string to be a string." % key)
+            raise BadKeyTypeError("%s must be a string to be a key." % key)
 
-    def commit(self, key, data, autocommit=False, **kwargs):
+    def _insert_repo_entry(self, key, blob_id, author, committer, message):
+        """Insert a new piece of data into the repo's tree.
+        """
+        # TreeBuilder doesn't support inserting into trees, so we roll our own
+        try:
+            head_commit = self._repo[self._repo.lookup_reference('head').resolve().oid]
+            head_tree = head_commit.tree
+            tree_data = b''.join([
+                b"%o %s\x00%s" % (e.attributes, e.name, e.oid)  # octal attributes
+                for e in head_tree if e.name != key  # skip existing entry
+            ])
+            parents = [head_commit.oid]
+        except KeyError:  # no commit yet for head (first commit to repo),
+                          # so we create an empty tree
+            tree_data = ''
+            parents = []
+        tree_data = tree_data + b"100644 %s\x00%s" % (key, blob_id)
+
+        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, tree_data)
+        self._repo.create_commit('head', author, committer, message, tree_id, parents)
+
+    def commit(self, key, data, **kwargs):
         """Commit new data to the key.  Maintains relation to parent commits.
 
         :param key: The key of the new data.
@@ -48,7 +70,8 @@ class Repository(object):
         :param data:  The value of the item.
         :type data: anything that runs through :func:`json.dumps`
         :param autocommit:
-            whether the retrieved :class:`Object` should autocommit.
+            (optional) whether the retrieved :class:`Object` should autocommit.
+            Defaults to False.
         :type autocommit: boolean
         :param author:
             (optional) The signature for the author of the first commit.
@@ -64,7 +87,11 @@ class Repository(object):
         :param committer:
             (optional) The signature for the committer of the first commit.
             Defaults to author.
-        :type author: pygit2.Signature
+        :type committer: pygit2.Signature
+        :param parents:
+            (optional) The parents of this commit.  Defaults to the last commit
+            for this key if it already exists, or an empty list if not.
+        :type parents: list of :class:`Commit`
 
         :returns: the committed data, extended with JsonGit methods
         :rtype: :class:`Object`
@@ -72,12 +99,14 @@ class Repository(object):
         :raises: NotJsonError, BadKeyTypeError
         """
         message = kwargs.pop('message', '' if self.has(key) else 'first commit')
-        parents = kwargs.pop('parents', [self.head(key)] if self.has(key) else [])
+        parents = kwargs.pop('parents', [self.get(key).head] if self.has(key) else [])
         author = kwargs.pop('author', utils.signature(self._global_name,
                                                       self._global_email))
+        autocommit = kwargs.pop('autocommit', False)
         committer = kwargs.pop('committer', author)
         if kwargs:
             raise TypeError("Unknown keyword args %s" % kwargs)
+
         try:
             blob_id = self._repo.write(pygit2.GIT_OBJ_BLOB, self._dumps(data))
         except ValueError as e:
@@ -85,13 +114,15 @@ class Repository(object):
         except TypeError as e:
             raise NotJsonError(e)
 
-        # TreeBuilder doesn't support inserting into trees, so we roll our own
-        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE,
-                                   '100644 %s\x00%s' % (DATA, blob_id))
+        self._insert_repo_entry(key, blob_id, author, committer, message)
 
-        self._repo.create_commit(self._translate_key(key), author,
-                                 committer, message, tree_id,
+        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, b"100644 %s\x00%s" % (key, blob_id))
+        self._repo.create_commit(self._key2ref(key), author, committer,
+                                 message, tree_id,
                                  [parent.oid for parent in parents])
+        #  update head ref
+        # self._repo.lookup_reference('head').target = key_ref
+
         return self.get(key, autocommit=autocommit)
 
     def destroy(self):
@@ -100,6 +131,7 @@ class Repository(object):
         will throw exceptions.
         """
         shutil.rmtree(self._repo.path)
+        self._repo = None
 
     def has(self, key):
         """Determine whether there is an entry for key in this repository.
@@ -113,43 +145,22 @@ class Repository(object):
         :raises: BadKeyTypeError, KeyError
         """
         try:
-            self._repo.lookup_reference(self._translate_key(key))
+            self._repo.lookup_reference(self._key2ref(key))
             return True
         except KeyError:
             return False
 
-    def head(self, key, back=0):
-        """Obtain a commit for a key relative to head (the most recent).
-
-        :param key: The key to get the commit for
-        :type key: string
-        :param back:
-            (optional) How many steps back from head to get the commit.
-            Defaults to 0.
-        :type back: integer
-
-        :returns: The head commit
-        :rtype: :class:`Commit`
-
-        :raises: BadKeyTypeError, KeyError
-        """
-        if back == 0:
-            ref = self._repo.lookup_reference(self._translate_key(key))
-            return Commit(self, self._repo[ref.oid])
-        else:
-            for i, commit in enumerate(self.log(key)):
-                if i == back:
-                    return commit
-            raise IndexError("More steps back than log")
-
-    def get(self, key=None, commit=None, autocommit=False):
-        """Obtain the :class:`Object` associated with a key or commit.  Looking
-        up a key is equivalent to looking up its head commit.  You must supply
-        a key or a commit.
+    def get(self, key=None, back=0, commit=None, autocommit=False):
+        """Obtain the :class:`Object` associated with a key or commit.
 
         :param key: (optional) The key to look up.
         :type key: string
-        :param commit: (optional) The commit to look up.
+        :param back:
+            (optional) How many steps back from head to get the object.
+            Defaults to 0 (the most recent).
+        :type back: integer
+        :param commit:
+            (optional) An explicit commit to get the object for.
         :type commit: :class:`Commit`
         :param autocommit:
             (optional) Whether the retrieved data should commit when changed.
@@ -161,13 +172,17 @@ class Repository(object):
         :raises: KeyError if there is no entry for key
         """
         if commit is None:
-            commit = self.head(key)
-        raw_data = self._repo[self._repo[commit.oid].tree[DATA].oid].data
-        return Object(self, key, commit, self._loads(raw_data), autocommit)
+            try:
+                commit = itertools.islice(self.log(key), back, back + 1).next()
+            except StopIteration:
+                raise IndexError("%s has fewer than %s commits" % (key, back))
+
+        raw_data = self._repo[self._repo[commit.oid].tree[commit.key].oid].data
+        return Object(self, commit, self._loads(raw_data), autocommit)
 
     def fast_forward(self, dest, key=None, commit=None, **kwargs):
-        """Fast forward the data at dest.  Loses intervening commits if there
-        were any.
+        """Fast forward the key at dest.  Loses intervening commits if there
+        were any.  Creates an object there if it does not yet exist.
 
         :param dest: the key to be fast forwarded
         :type dest: string
@@ -183,14 +198,23 @@ class Repository(object):
         :raises: KeyError, BadKeyTypeError
         """
         if commit is None:
-            commit = self.head(key)
-        if key == dest:
+            commit = self.get(key).head
+        if commit.key == dest:
             raise ValueError('Cannot fast forward key to itself')
-        dest_ref = self._translate_key(dest)
-        # TODO: require a force flag in this case?
-        if self.has(dest):
-            self._repo.lookup_reference(dest_ref).delete()
-        self._repo.create_reference(dest_ref, commit.oid)
+
+        self.commit(dest, commit.object.value,
+                    message="Fast forwarding %s from %s" % (dest, commit.key),
+                    parents=[commit])
+        # blob_id = self._repo[commit.oid].tree[0].oid
+        # author = utils.signature(self._global_name, self._global_email)
+        # self._insert_repo_entry(dest, blob_id, author, author,
+        #                        "Fast forwarding %s from %s" % (dest, commit.key))
+        # #self.commit(dest, commit.object.value, parents=[commit], **kwargs)
+        # dest_ref = self._key2ref(dest)
+        # # TODO: require a force flag in this case?
+        # if self.has(dest):
+        #     self._repo.lookup_reference(dest_ref).delete()
+        # self._repo.create_reference(dest_ref, commit.oid)
 
         return self.get(dest, **kwargs)
 
@@ -219,8 +243,8 @@ class Repository(object):
         :rtype: :class:`JsonMerge`
         """
         if commit is None:
-            commit = self.head(key)
-        dest_head = self.head(dest)
+            commit = self.get(key).head
+        dest_head = self.get(dest).head
         # No difference
         if commit.oid == dest_head.oid:
             return Merge(True, commit, dest_head, "Same commit")
@@ -252,7 +276,7 @@ class Repository(object):
         else:
             merged_data = dest_diff.apply(source_diff.apply(shared_commit.object.value))
             message = "Auto-merge from %s" % shared_commit.hex
-            parents = [commit, dest_head]
+            parents = [dest_head, commit]
             self.commit(dest, merged_data, message=message, parents=parents, **kwargs)
             return Merge(True, commit, dest_head, message)
 
@@ -277,7 +301,8 @@ class Repository(object):
         :rtype: generator
         """
         if commit is None:
-            commit = self.head(key)
+            c = self._repo[self._repo.lookup_reference(self._key2ref(key)).oid]
+            commit = Commit(self, c)
         return (Commit(self, c) for c in self._repo.walk(commit.oid, order))
 
 
@@ -295,14 +320,13 @@ class Object(collections.MutableMapping, collections.MutableSequence):
             return retval
         return wrapped
 
-    def __init__(self, repo, key, head, value, autocommit):
+    def __init__(self, repo, commit, value, autocommit):
 
         #: Whether changes should be automatically committed.
         self.autocommit = autocommit
 
         self._repo = repo
-        self._key = key
-        self._head = head
+        self._head = commit
         self._value = value
         self._dirty = False
 
@@ -344,10 +368,11 @@ class Object(collections.MutableMapping, collections.MutableSequence):
             self._value.__repr__(),
             self.dirty)
 
-    def _read(self):
-        updated = self._repo.get(self.key)
-        self._value = updated.value
-        self._head = updated.head
+    def _update(self, commit=None):
+        if commit is None:
+            commit = self._repo.get(self.key).head
+        self._value = commit.object.value
+        self._head = commit
         self._dirty = False
 
     @property
@@ -360,7 +385,7 @@ class Object(collections.MutableMapping, collections.MutableSequence):
     def key(self):
         """The String key for this dict in its repository.
         """
-        return self._key
+        return self.head.key
 
     @property
     def dirty(self):
@@ -376,7 +401,7 @@ class Object(collections.MutableMapping, collections.MutableSequence):
 
     @property
     def head(self):
-        """The head :class:`Commit` for this object.
+        """The :class:`Commit` last associated with this object.
         """
         return self._head
 
@@ -384,10 +409,9 @@ class Object(collections.MutableMapping, collections.MutableSequence):
         """Convenience wrapper for :func:`Repository.commit` applying to this
         key.  Resets the dirty flag and updates head.
         """
-        updated = self.repo.commit(self.key, self.value, **kwargs)
-        assert self._value == updated.value
-        self._head = updated.head
-        self._dirty = False
+        commit = self.repo.commit(self.key, self.value, **kwargs).head
+        self._update(commit=commit)
+        assert self.value == commit.object.value
 
     def log(self, **kwargs):
         """Convenience wrapper for :func:`Repository.log` applying to this key.
@@ -406,13 +430,12 @@ class Object(collections.MutableMapping, collections.MutableSequence):
 
         :raises: DifferentRepoError
         """
-        if not isinstance(other, Object):
-            raise ValueError('Can only merge in another Object')
         if other.repo == self.repo:
             merge = self.repo.merge(self.key, commit=other.head, **kwargs)
             if merge.success:
-                self._read()
+                self._update()
             return merge
         else:
+            # this would run, but would break references in future.
             raise DifferentRepoError("Cannot merge object in, it's in a \
                                      different repo")

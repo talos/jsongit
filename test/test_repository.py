@@ -1,6 +1,7 @@
 import jsongit
 import helpers
 import os
+import json
 
 class TestJsonGitRepository(helpers.RepoTestCase):
 
@@ -63,30 +64,29 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('dict', {'foo': 'bar'})
         self.assertEqual({'foo': 'bar'}, self.repo.get('dict').value)
 
-    def test_head(self):
+    def test_commit_info(self):
         """Get head and info
         """
         self.repo.commit('obj', {'foo': 'bar'},
                          message='my special message',
                          author=jsongit.utils.signature('sally', 's@s.com'))
-        head = self.repo.head('obj')
-        self.assertEquals({'foo': 'bar'}, head.object.value)
-        self.assertEquals('my special message', head.message)
-        self.assertEquals('sally', head.author.name)
-        self.assertEquals('s@s.com', head.author.email)
+        obj = self.repo.get('obj')
+        self.assertEquals('my special message', obj.head.message)
+        self.assertEquals('sally', obj.head.author.name)
+        self.assertEquals('s@s.com', obj.head.author.email)
 
-    def test_head_back(self):
+    def test_get_back(self):
         """Get historical head and info
         """
         self.repo.commit('obj', {'foo': 'bar'},
                          message='my special message',
                          author=jsongit.utils.signature('sally', 's@s.com'))
         self.repo.commit('obj', {'bar': 'baz'})
-        head = self.repo.head('obj', back=1)
-        self.assertEquals({'foo': 'bar'}, head.object.value)
-        self.assertEquals('my special message', head.message)
-        self.assertEquals('sally', head.author.name)
-        self.assertEquals('s@s.com', head.author.email)
+        obj = self.repo.get('obj', back=1)
+        self.assertEquals({'foo': 'bar'}, obj.value)
+        self.assertEquals('my special message', obj.head.message)
+        self.assertEquals('sally', obj.head.author.name)
+        self.assertEquals('s@s.com', obj.head.author.email)
 
     def test_head_back_too_far(self):
         """Should get IndexError if we try to go back too far.
@@ -94,7 +94,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('obj', {'foo': 'bar'})
         self.repo.commit('obj', {'bar': 'baz'})
         with self.assertRaises(IndexError):
-            self.repo.head('obj', back=2)
+            self.repo.get('obj', back=2)
 
     def test_fast_forward_default(self):
         """ Copy an existing object with default (key) fast forward.
@@ -114,7 +114,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """Fast forward explicitly to a commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fast_forward('bar', commit=self.repo.head('foo'))
+        self.repo.fast_forward('bar', commit=self.repo.get('foo').head)
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_fast_forward_commit_old(self):
@@ -122,7 +122,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('foo', {'violets': 'blue'})
-        self.repo.fast_forward('bar', commit=self.repo.head('foo', back=1))
+        self.repo.fast_forward('bar', commit=self.repo.get('foo', back=1).head)
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_fast_forward_already_existing(self):
@@ -167,5 +167,19 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         for item in not_strings:
             with self.assertRaises(jsongit.BadKeyTypeError):
                 self.repo.commit(item, {'foo': 'bar'})
+
+    def test_all_keys_in_master(self):
+        """All keys should be real blobs in the repo's head.
+        """
+        pygit2_repo = self.repo._repo
+        self.repo.commit('roses', 'red')
+        self.repo.commit('violets', 'blue')
+        head_ref = pygit2_repo.lookup_reference('head').resolve()
+        head_commit = pygit2_repo[head_ref.oid]
+        tree = head_commit.tree
+        self.assertIn('roses', tree)
+        self.assertIn('violets', tree)
+        self.assertEquals(json.dumps('red'), tree['roses'].to_object().data)
+        self.assertEquals(json.dumps('blue'), tree['violets'].to_object().data)
 
 
