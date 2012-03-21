@@ -37,11 +37,9 @@ From Source
 
 If you want to hack on JsonGit, you should grab the source.
 
-You can clone it from the `GitHub respository`_::
+You can clone it from the `GitHub repository <https://github.com/talos/jsongit>`_::
 
     $ git clone https://github.com/talos/jsongit.git
-
-.. _GitHub repository: https://github.com/talos/jsongit
 
 Then, install the requirements::
 

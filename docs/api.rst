@@ -17,7 +17,7 @@ The :class:`models.Object` wraps a key stored in its Repository.  You can
 choose to ignore it and use the Repository as a key-value store.
 
 .. module:: jsongit
-.. autofunction:: repo
+.. autofunction:: init
 
 ----------------------
 
@@ -44,7 +44,7 @@ Exceptions
 .. module:: jsongit
 .. autoexception:: NoGlobalSettingError
 .. autoexception:: DifferentRepoError
-.. autoexception:: BadKeyTypeError
+.. autoexception:: InvalidKeyError
 .. autoexception:: NotJsonError
 
 Utilities

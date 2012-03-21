@@ -38,6 +38,10 @@ Pip handles the rest::
 
     $ pip install jsongit
 
+You can find full installation instructions in the documentation_.
+
+.. _documentation: http://jsongit.readthedocs.org/en/latest/usage/install.html
+
 Documentation
 -------------
 
