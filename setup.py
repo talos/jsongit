@@ -23,7 +23,10 @@ setup(
     install_requires=required,
     license='BSD',
     classifiers=(
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
+        'Topic :: Software Development',
+        'Natural Language :: English',
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7'
