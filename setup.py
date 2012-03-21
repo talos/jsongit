@@ -15,7 +15,7 @@ setup(
     name='jsongit',
     version=jsongit.__version__,
     description='Git for JSON',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='John Krauss',
     author_email='john@accursedware.com',
     url='http://github.com/talos/jsongit',
