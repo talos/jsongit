@@ -96,7 +96,7 @@ class DiffWrapper(object):
             # wrap recursive updates
             if Diff.UPDATE in diff:
                 update = diff[Diff.UPDATE]
-                for k, v in update.viewitems():
+                for k, v in update.iteritems():
                     update[k] = DiffWrapper(v)
             self._replace = None
         else:
@@ -154,12 +154,12 @@ class DiffWrapper(object):
             return self.replace
         else:
             obj = copy.copy(original)
-            for k, v in (self.remove or {}).viewitems():
+            for k, v in (self.remove or {}).iteritems():
                 obj.pop(k)
-            for k, v in (self.update or {}).viewitems():
+            for k, v in (self.update or {}).iteritems():
                 # Recursive application
                 obj[k] = v.apply(obj[k])
-            for k, v in (self.append or {}).viewitems():
+            for k, v in (self.append or {}).iteritems():
                 if hasattr(obj, 'insert'):
                     obj.insert(k, v)
                 else:

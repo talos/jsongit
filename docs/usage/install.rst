@@ -7,7 +7,7 @@ Installing JsonGit is easy.  It's recommended you install within a virtualenv_.
 
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 
-JsonGit has been tested with Python 2.7.
+JsonGit has been tested with Python 2.7.1 and 2.6.5.
 
 libgit2
 -------

@@ -48,7 +48,7 @@ class Repository(object):
         """Insert a new piece of data into the repo's tree.
         """
         # TreeBuilder doesn't support inserting into trees, so we roll our own
-        head_target = self._repo.lookup_reference('head').target
+        head_target = self._repo.lookup_reference('HEAD').target
         try:
             head_commit = self._repo[self._repo.lookup_reference(head_target).oid]
             head_tree = head_commit.tree
@@ -134,7 +134,7 @@ class Repository(object):
                                      message, tree_id,
                                      [parent.oid for parent in parents])
         except pygit2.GitError as e:
-            if e.message.startswith('Failed to create reference'):
+            if str(e).startswith('Failed to create reference'):
                 raise InvalidKeyError(e)
             else:
                 raise e

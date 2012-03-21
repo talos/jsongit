@@ -170,7 +170,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('violets', 'blue')
 
         pygit2_repo = self.repo._repo
-        head_ref = pygit2_repo.lookup_reference('head').resolve()
+        head_ref = pygit2_repo.lookup_reference('HEAD').resolve()
         head_commit = pygit2_repo[head_ref.oid]
         tree = head_commit.tree
         self.assertIn('roses', tree)
@@ -214,7 +214,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
             repo.commit('path/to/file.json', {'roses': 'red', 'violets': 'blue'})
 
             # equivalent to checkout master
-            head = nonbare.lookup_reference('head').resolve()
+            head = nonbare.lookup_reference('HEAD').resolve()
             # index = nonbare.index
             # index.read_tree(nonbare[head.oid].tree.oid)
             # index.write()

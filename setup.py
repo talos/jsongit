@@ -25,6 +25,7 @@ setup(
     classifiers=(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
+        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7'
     ),
 )
