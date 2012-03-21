@@ -5,41 +5,35 @@ Installation
 
 Installing JsonGit is easy.  It's recommended you install within a virtualenv_.
 
-.. virtualenv: http://www.virtualenv.org/en/latest/index.html
+.. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 
-Dependencies
-------------
+JsonGit has been tested with Python 2.7.
 
 libgit2
-~~~~~~~
+-------
 
 Libgit2_ is used to build and modify the git repository. You can find
 instructions for installing it here_.
 
-.. Libgit2: http://libgit2.github.com/
-.. here: http://libgit2.github.com/#install
+.. _Libgit2: http://libgit2.github.com/
+.. _here: http://libgit2.github.com/#install
 
-Python
-~~~~~~
-
-JsonGit has been tested with Python 2.7.
-
-Install via Pip
----------------
+With Pip
+--------
 
 If you want to use JsonGit in your project now, pip_ is the fastest and easiest
 way to install.
 
-.. pip: http://www.pip-installer.org/
+.. _pip: http://www.pip-installer.org/
 
 JsonGit is hosted on PyPI_, so you can install it in one line::
 
     $ pip install jsongit
 
-.. PyPI: http://pypi.python.org/pypi
+.. _PyPI: http://pypi.python.org/pypi
 
-Install via Source
-------------------
+From Source
+-----------
 
 If you want to hack on JsonGit, you should grab the source.
 
@@ -47,7 +41,7 @@ You can clone it from the `GitHub respository`_::
 
     $ git clone https://github.com/talos/jsongit.git
 
-.. GitHub repository: https://github.com/talos/jsongit
+.. _GitHub repository: https://github.com/talos/jsongit
 
 Then, install the requirements::
 
