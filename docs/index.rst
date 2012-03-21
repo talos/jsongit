@@ -8,7 +8,10 @@ JsonGit: Git Your Dict
 
 Release v\ |version|. (:ref:`Installation <install>`)
 
-Use Git as a key-value store that can track and merge arbitrary data in Python.
+Use git_ as a key-value store that can track and merge arbitrary data in
+Python.
+
+.. git: http://git-scm.com/
 
 ::
 
@@ -26,24 +29,43 @@ Use Git as a key-value store that can track and merge arbitrary data in Python.
     u'Auto-merge from dc1ce3d1cc47afd8c5029efccd398d415675d596'
     ...
 
-JsonGit layers above :ref:`pygit2 <https://github.com/libgit2/pygit2>`
-and :ref:`json_diff <https://fedorahosted.org/json_diff/>`.
+JsonGit layers above the Python packages pygit2_ and json_diff_ to give you
+logs, merges, diffs, and persistence for any objects that serialize to JSON_.
+It's licensed BSD.
+
+.. pygit2: https://github.com/libgit2/pygit2
+.. json_diff: https://fedorahosted.org/json_diff/
+.. JSON: http://json.org/
 
 Features
 --------
 
-- Stores any data that can be serialized as JSON
+- Works with any object that can be serialized as JSON
 - Simple key-value store API
 - Optional object wrapper for lists and dicts
 - Portable, persistent repositories
 - Automatic merging
 - Conflict detection
+- Key-specific logs
 - Signature support for data
+
+Usage
+-----
+
+Learn why you would want to use JsonGit, how to install it, and how to use it
+with step-by-step guides.
+
+.. toctree ::
+   :maxdepth 1:
+
+   usage/why
+   usage/install
+   usage/start
 
 API Documentation
 -----------------
 
-Docs on classes and methods in jsongit.
+The technical nitty-gritty.
 
 .. toctree::
    :maxdepth: 2
