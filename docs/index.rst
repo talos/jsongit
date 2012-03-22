@@ -8,7 +8,7 @@ JsonGit: Git Your Dict
 
 Release v\ |version|. (:ref:`Installation <install>`)
 
-Use git_ as a key-value store that stores, tracks and merge arbitrary data in
+Use git_ as a key-value store to store, track and merge arbitrary data in
 Python.
 
 .. _git: http://git-scm.com/
