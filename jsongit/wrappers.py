@@ -15,27 +15,30 @@ class Commit(object):
     in the repo.
     """
 
-    def __init__(self, repo, pygit2_commit):
-        self._repo = repo
-        self._key = pygit2_commit.tree[0].name
+    def __init__(self, repo, key, value, pygit2_commit):
         self._commit = pygit2_commit
+        self._repo = repo
+        self._key = key
+        self._value = value
 
     def __eq__(self, other):
         return self.oid == other.oid
 
     def __str__(self):
-        return self._commit.__str__()
+        return "'%s'='%s'@%s" % (self.key, self.value, self.hex)
 
     def __repr__(self):
-        return "%s(%s)" % (type(self).__name__, self._commit.__repr__())
+        return "%s(%s,message=%s,author=)" % (type(self).__name__,
+                                              self.__str__(), self.message,
+                                             self.author)
 
     @property
-    def object(self):
+    def value(self):
         """
-        :returns: the data object associated with this commit.
-        :rtype: :class:`Object`
+        :returns: the value associated with this commit.
+        :rtype: Boolean, Number, None, String, Dict, or List
         """
-        return self._repo.get(commit=self)
+        return self._value
 
     @property
     def key(self):
@@ -77,15 +80,26 @@ class Commit(object):
         """
         return self._commit.author
 
-    # @property
-    # def parents(self):
-    #     """
-    #     :returns: the parents of this commit.
-    #     :rtype: list of :class:`Object`
-    #     """
-    #     #TODO might generate commits with the wrong key?
-    #     return [Commit(self._repo, self.key, c) for c in self._commit.parents]
+    @property
+    def committer(self):
+        """
+        :returns: The committer of this commit.
+        :rtype: :class:`pygit2.Signature`
+        """
+        return self._commit.committer
 
+    @property
+    def time(self):
+        """
+        :returns: The time of this commit.
+        :rtype:
+        """
+        return self._commit.commit_time
+
+    def log(self, **kwargs):
+        """A wrapper to :func:`Repository.log` from this commit.
+        """
+        return self._repo.log(commit=self, **kwargs)
 
 class DiffWrapper(object):
     """An internal wrapper for :mod:`json_diff`.

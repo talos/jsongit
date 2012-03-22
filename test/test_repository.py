@@ -40,7 +40,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         Arbitrary path should cause KeyError
         """
         with self.assertRaises(KeyError):
-            self.assertEqual({}, self.repo.get('nuthin'))
+            self.assertEqual({}, self.repo.get('nuthin').value)
 
     def test_commit_number(self):
         """Support numbers.
@@ -72,10 +72,10 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('obj', {'foo': 'bar'},
                          message='my special message',
                          author=jsongit.utils.signature('sally', 's@s.com'))
-        obj = self.repo.get('obj')
-        self.assertEquals('my special message', obj.head.message)
-        self.assertEquals('sally', obj.head.author.name)
-        self.assertEquals('s@s.com', obj.head.author.email)
+        commit = self.repo.get('obj')
+        self.assertEquals('my special message', commit.message)
+        self.assertEquals('sally', commit.author.name)
+        self.assertEquals('s@s.com', commit.author.email)
 
     def test_get_back(self):
         """Get historical head and info
@@ -84,11 +84,11 @@ class TestJsonGitRepository(helpers.RepoTestCase):
                          message='my special message',
                          author=jsongit.utils.signature('sally', 's@s.com'))
         self.repo.commit('obj', {'bar': 'baz'})
-        obj = self.repo.get('obj', back=1)
-        self.assertEquals({'foo': 'bar'}, obj.value)
-        self.assertEquals('my special message', obj.head.message)
-        self.assertEquals('sally', obj.head.author.name)
-        self.assertEquals('s@s.com', obj.head.author.email)
+        commit = self.repo.get('obj', back=1)
+        self.assertEquals({'foo': 'bar'}, commit.value)
+        self.assertEquals('my special message', commit.message)
+        self.assertEquals('sally', commit.author.name)
+        self.assertEquals('s@s.com', commit.author.email)
 
     def test_head_back_too_far(self):
         """Should get IndexError if we try to go back too far.
@@ -110,22 +110,22 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.fork('bar', 'foo')
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar').value)
 
     def test_fork_commit(self):
         """Explicitly fork a commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fork('bar', commit=self.repo.get('foo').head)
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+        self.repo.fork('bar', commit=self.repo.get('foo'))
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar').value)
 
     def test_fork_old(self):
         """Explicitly fork from an older commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('foo', {'violets': 'blue'})
-        self.repo.fork('bar', commit=self.repo.get('foo', back=1).head)
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+        self.repo.fork('bar', commit=self.repo.get('foo', back=1))
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar').value)
 
     def test_merge_already_existing(self):
         """
@@ -134,7 +134,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('bar', {'violets': 'blue'})
         self.repo.merge('bar', 'foo')
-        self.assertEqual({'violets': 'blue'}, self.repo.get('bar'))
+        self.assertEqual({'violets': 'blue'}, self.repo.get('bar').value)
 
     def test_merge_self(self):
         """
@@ -150,7 +150,7 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         """
         self.repo.commit('foo', {'roses':'red'})
         self.repo.commit('foo', {})
-        self.assertEqual({}, self.repo.get('foo'))
+        self.assertEqual({}, self.repo.get('foo').value)
 
     def test_not_json(self):
         """

@@ -16,24 +16,20 @@ Python.
 ::
 
     >>> r = jsongit.init('repo')
-    >>> foo = r.commit('foo', {})
-    >>> bar = r.merge('bar', 'foo').result
-    >>> foo['roses'] = 'red'
-    >>> bar['violets'] = 'blue'
-    >>> foo.commit()
-    >>> bar.commit()
-    >>> foo.merge(bar).message
-    u'Auto-merge from ee0badced484570b36bb219ad81567098e9995a7'
-    >>> foo.value
+    >>> r.commit('foo', {})
+    >>> r.fork('bar', 'foo')
+    >>> r.commit('foo', {'roses': 'red'})
+    >>> r.commit('bar', {'violets': 'blue'})
+    >>> r.merge('foo', 'bar').message
+
+    >>> r.get('foo').value
     {u'roses': u'red', u'violets': u'blue'}
-    >>> log = foo.log()
-    >>> pprint([commit.object.value for commit in log])
+    >>> pprint([commit.value for commit in r.log('foo')])
     [{u'roses': u'red', u'violets': u'blue'},
      {u'violets': u'blue'},
      {},
      {u'roses': u'red'},
      {}]
-    ...
 
 JsonGit layers above the Python packages pygit2_ and json_diff_ to give you
 logs, merges, diffs, and persistence for any objects that serialize to JSON_.
@@ -48,12 +44,10 @@ Features
 
 - Works with any object that can be serialized as JSON
 - Simple key-value store API
-- Optional object wrapper for lists and dicts
 - Portable, persistent repositories
 - Automatic merging
 - Conflict detection
-- Key-specific logs
-- Signature support for data
+- Key-specific logs and signatures
 
 Usage
 -----
