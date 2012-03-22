@@ -98,26 +98,33 @@ class TestJsonGitRepository(helpers.RepoTestCase):
         with self.assertRaises(IndexError):
             self.repo.get('obj', back=2)
 
-    def test_copy(self):
-        """ Copy an existing object using merge.
+    def test_merge_nonexistent(self):
+        """ Merging nonexistent throws a KeyError.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.merge('bar', 'foo')
-        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+        with self.assertRaises(KeyError):
+            self.repo.merge('bar', 'foo')
 
-    def test_merge_commit(self):
-        """Merge explicitly to a commit.
+    def test_fork_new_key(self):
+        """ Fork to create a new key.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.merge('bar', commit=self.repo.get('foo').head)
+        self.repo.fork('bar', 'foo')
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
-    def test_merge_old(self):
-        """Fast forward explicitly to an older commit.
+    def test_fork_commit(self):
+        """Explicitly fork a commit.
+        """
+        self.repo.commit('foo', {'roses': 'red'})
+        self.repo.fork('bar', commit=self.repo.get('foo').head)
+        self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
+
+    def test_fork_old(self):
+        """Explicitly fork from an older commit.
         """
         self.repo.commit('foo', {'roses': 'red'})
         self.repo.commit('foo', {'violets': 'blue'})
-        self.repo.merge('bar', commit=self.repo.get('foo', back=1).head)
+        self.repo.fork('bar', commit=self.repo.get('foo', back=1).head)
         self.assertEqual({'roses': 'red'}, self.repo.get('bar'))
 
     def test_merge_already_existing(self):

@@ -48,7 +48,7 @@ class TestObject(RepoTestCase):
         merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.merge('bar', 'foo').result
+        bar = self.repo.fork('bar', 'foo')
         foo['violets'] = 'blue'
         foo.commit()
         merge = bar.merge(foo)
@@ -61,7 +61,7 @@ class TestObject(RepoTestCase):
         not merge.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.merge('bar', 'foo').result
+        bar = self.repo.fork('bar', 'foo')
         foo['roses'] = 'pink'
         foo.commit()
         bar['roses'] = 'orange'
@@ -74,7 +74,7 @@ class TestObject(RepoTestCase):
         If the changes don't conflict, merges should be automatic.
         """
         foo = self.repo.commit('foo', {'roses': 'red'})
-        bar = self.repo.merge('bar', 'foo').result
+        bar = self.repo.fork('bar', 'foo')
 
         foo['violets'] = 'blue'
         foo.commit()

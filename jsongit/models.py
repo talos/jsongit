@@ -166,6 +166,37 @@ class Repository(object):
         except KeyError:
             return False
 
+    def fork(self, dest, key=None, commit=None, **kwargs):
+        """Create a new key at dest if it does not exist whose first commit
+        will point to the head of the specified key or commit.
+
+        :param key:
+            (optional) the key of the merge source, which will use the head
+            commit.
+        :type key: string
+        :param commit: (optional) the explicit commit to merge
+        :type commit: :class:`Commit`
+        :param author:
+            (optional) The author of the commit.  Defaults to global author.
+        :type author: pygit2.Signature
+        :param committer:
+            (optional) The committer of the commit.  Will default to global author.
+        :type committer: pygit2.Signature
+
+        :rtype: :class:`Object`
+        :raises: KeyError if there is already a key at dest.
+        """
+        if commit is None:
+            commit = self.get(key).head
+        if commit.key == dest:
+            raise ValueError('I can see you\'ve played knifey-spooney (a key can\'t fork itself)')
+        if self.has(dest):
+            raise KeyError("Cannot fork to %s, there is already a key there." % dest)
+        else:
+            message = "Forking %s from %s" % (dest, commit.key)
+            return self.commit(dest, commit.object.value, message=message,
+                               parents=[commit])
+
     def get(self, key=None, back=0, commit=None, autocommit=False):
         """Obtain the :class:`Object` associated with a key or commit.
 
@@ -187,18 +218,19 @@ class Repository(object):
         :rtype: :class:`Object`
         :raises: KeyError if there is no entry for key
         """
-        if commit is None:
-            try:
+        try:
+            if commit is None:
                 commit = itertools.islice(self.log(key), back, back + 1).next()
-            except StopIteration:
-                raise IndexError("%s has fewer than %s commits" % (key, back))
-
-        raw_data = self._repo[self._repo[commit.oid].tree[commit.key].oid].data
-        return Object(self, commit, self._loads(raw_data), autocommit)
+        except KeyError:
+            raise KeyError("There is no key at %s" % key)
+        except StopIteration:
+            raise IndexError("%s has fewer than %s commits" % (key, back))
+        else:
+            raw_data = self._repo[self._repo[commit.oid].tree[commit.key].oid].data
+            return Object(self, commit, self._loads(raw_data), autocommit)
 
     def merge(self, dest, key=None, commit=None, **kwargs):
-        """Try to merge two keys together.  Will create a new value at dest if
-        it does not exist, whose first commit will point to the merge source.
+        """Try to merge two keys together.
 
         :param dest: the key to receive the merge
         :type dest: string
@@ -218,19 +250,12 @@ class Repository(object):
         :type committer: pygit2.Signature
 
         :returns: The results of the merge operation
-        :rtype: :class:`JsonMerge`
+        :rtype: :class:`Merge`
         """
         if commit is None:
             commit = self.get(key).head
         if commit.key == dest:
             raise ValueError('Cannot merge a key with itself')
-
-        # copying
-        if not self.has(dest):
-            message = "Copying %s from %s" % (dest, commit.key)
-            obj = self.commit(dest, commit.object.value, message=message,
-                              parents=[commit])
-            return Merge(True, commit, obj.head, message, result=obj)
 
         dest_head = self.get(dest).head
         # No difference
