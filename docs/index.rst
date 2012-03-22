@@ -61,7 +61,7 @@ Usage
 Learn how to install and use JsonGit.
 
 .. toctree ::
-   :maxdepth: 1
+   :maxdepth: 2
 
    usage/install
    usage/start

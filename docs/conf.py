@@ -39,7 +39,7 @@ for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
 import jsongit
-from jsongit import __version__
+from jsongit.version import __version__
 
 # -- General configuration -----------------------------------------------------
 

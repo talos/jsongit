@@ -1,4 +1,4 @@
 # -*- coding: utf-8 -*-
 
-__version__ = '0.0.4'
-__build__ = 0x000004
+__version__ = '0.0.5'
+__build__ = 0x000005
