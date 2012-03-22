@@ -87,3 +87,12 @@ class TestObject(RepoTestCase):
         self.assertEqual({'roses':'red',
                           'violets':'blue',
                           'lilacs': 'purple'}, foo.value)
+
+    def test_fork(self):
+        """
+        Can fork an object.
+        """
+        foo = self.repo.commit('foo', 'sumthin sumthin')
+        bar = foo.fork('bar')
+        self.assertEquals('bar', bar.key)
+        self.assertEquals(foo.value, bar.value)

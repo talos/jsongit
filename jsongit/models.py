@@ -450,3 +450,13 @@ class Object(collections.MutableMapping, collections.MutableSequence):
             # this would run, but would break references in future.
             raise DifferentRepoError("Cannot merge object in, it's in a \
                                      different repo")
+
+    def fork(self, dest_key, **kwargs):
+        """Convenience wrapper for :func:`Repository.fork`
+
+        :param dest_key:
+            the key to fork to.
+        :type dest_key: string
+        """
+        return self.repo.fork(dest_key, commit=self.head)
+
