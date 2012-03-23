@@ -24,8 +24,6 @@ choose to ignore it and use the Repository as a key-value store.
 .. module:: jsongit.models
 .. autoclass:: Repository
    :inherited-members:
-.. autoclass:: Object
-   :inherited-members:
 
 Diffs & Merges
 ~~~~~~~~~~~~~~
