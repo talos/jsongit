@@ -6,24 +6,21 @@ JsonGit
 Use Git as a key-value store that can track and merge arbitrary data in Python::
 
     >>> r = jsongit.init('repo')
-    >>> foo = r.commit('foo', {})
-    >>> bar = r.merge('bar', 'foo').result
-    >>> foo['roses'] = 'red'
-    >>> bar['violets'] = 'blue'
-    >>> foo.commit()
-    >>> bar.commit()
-    >>> foo.merge(bar).message
-    u'Auto-merge from ee0badced484570b36bb219ad81567098e9995a7'
-    >>> foo.value
+    >>> r.commit('foo', {})
+    >>> r.checkout('foo', 'bar')
+    >>> r.commit('foo', {'roses': 'red'})
+    >>> r.commit('bar', {'violets': 'blue'})
+    >>> r.merge('foo', 'bar').message
+    Auto-merge of be92d3dcb6 and dbde44bada from shared parent 5d55214e4f
+    >>> r.show('foo')
     {u'roses': u'red', u'violets': u'blue'}
-    >>> log = foo.log()
-    >>> pprint([commit.object.value for commit in log])
-    [{u'roses': u'red', u'violets': u'blue'},
-     {u'violets': u'blue'},
-     {},
-     {u'roses': u'red'},
-     {}]
-    ...
+    >>> for commit in r.log('foo'):
+    ...     print(commit)
+    'foo'='{u'roses': u'red', u'violets': u'blue'}'@fc9e0f3106
+    'bar'='{u'violets': u'blue'}'@be92d3dcb6
+    'bar'='{}'@5bb29ad7dc
+    'foo'='{u'roses': u'red'}'@dbde44bada
+    'foo'='{}'@5d55214e4f
 
 Installation
 ------------
