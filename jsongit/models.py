@@ -43,9 +43,18 @@ class Repository(object):
         else:
             return 'refs/heads/jsongit/%s' % key
 
-    def _build_commit(self, key, pygit2_commit):
-        assert key in pygit2_commit.tree
-        raw = self._repo[pygit2_commit.tree[key].oid].data
+    def _navigate_tree(self, oid, path):
+        """Find an OID inside a nested tree.
+        """
+        steps = path.split('/')
+        for step in steps:
+            oid = self._repo[oid][step].oid
+        return oid
+
+    def _build_commit(self, pygit2_commit):
+        #assert key in pygit2_commit.tree
+        key = pygit2_commit.tree[0].name
+        raw = self._repo[pygit2_commit.tree[0].oid].data
         value = self._loads(raw)
         return Commit(self, key, value, pygit2_commit)
 
@@ -170,17 +179,20 @@ class Repository(object):
         repo_head = self._repo_head()
         tree_id = self._repo.index.write_tree()
         self._repo.create_commit(self._head_target(), author, committer,
-                                 message, self._repo.index.write_tree(),
+                                 message, tree_id,
                                 [repo_head.oid] if repo_head else [])
 
-        #tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, b"100644 %s\x00%s" % (key, blob_id))
         # TODO This will create some keys but not others if there is a bad key
         for key in keys:
             if parents is None:
                 parents = [self.head(key)] if self.committed(key) else []
             try:
+                # create a single-entry tree for the commit.
+                blob_id = self._navigate_tree(tree_id, key)
+                key_tree_data = b"100644 %s\x00%s" % (key, blob_id)
+                key_tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, key_tree_data)
                 self._repo.create_commit(self._key2ref(key), author,
-                                         committer, message, tree_id,
+                                         committer, message, key_tree_id,
                                          [parent.oid for parent in parents])
             except pygit2.GitError as e:
                 if str(e).startswith('Failed to create reference'):
@@ -289,8 +301,8 @@ class Repository(object):
             return Merge(False, commit, dest_head, "No shared parent")
 
         # Now, see if the diffs conflict
-        source_diff = Diff(shared_commit.value, commit.value)
-        dest_diff = Diff(shared_commit.value, dest_head.value)
+        source_diff = Diff(shared_commit.data, commit.data)
+        dest_diff = Diff(shared_commit.data, dest_head.data)
 
         conflict = Conflict(source_diff, dest_diff)
 
@@ -300,7 +312,7 @@ class Repository(object):
                                 conflict=conflict)
         # Sweet. we can apply all the diffs.
         else:
-            merged_data = dest_diff.apply(source_diff.apply(shared_commit.value))
+            merged_data = dest_diff.apply(source_diff.apply(shared_commit.data))
             message = "Auto-merge of %s and %s from shared parent %s" % (
                 commit.hex[0:10], dest_head.hex[0:10], shared_commit.hex[0:10])
             parents = [dest_head, commit]
@@ -331,9 +343,8 @@ class Repository(object):
             raise TypeError()
         elif commit is None:
             c = self._repo[self._repo.lookup_reference(self._key2ref(key)).oid]
-            commit = self._build_commit(key, c)
-        return (self._build_commit(commit.key, c)
-                for c in self._repo.walk(commit.oid, order) if commit.key in c.tree)
+            commit = self._build_commit(c)
+        return (self._build_commit(c) for c in self._repo.walk(commit.oid, order))
 
     def remove(self, key, force=False):
         """Remove the head reference to this key, so that it is no longer

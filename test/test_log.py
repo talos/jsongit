@@ -10,8 +10,8 @@ class TestLog(RepoTestCase):
         self.repo.commit('fresh', {'foo': 'bar'})
         gen = self.repo.log('fresh')
         commit = gen.next()
-        self.assertEquals(commit, self.repo.get('fresh').head)
-        self.assertEquals(commit.object.value, self.repo.get('fresh').value)
+        self.assertEquals(commit, self.repo.head('fresh'))
+        self.assertEquals(commit.data, self.repo.head('fresh').data)
 
     def test_default_log(self):
         """Should step through commits backwards all the way by default.
@@ -23,10 +23,10 @@ class TestLog(RepoTestCase):
 
         gen = self.repo.log('foo')
 
-        self.assertEquals('step 4', gen.next().object.value)
-        self.assertEquals('step 3', gen.next().object.value)
-        self.assertEquals('step 2', gen.next().object.value)
-        self.assertEquals('step 1', gen.next().object.value)
+        self.assertEquals('step 4', gen.next().data)
+        self.assertEquals('step 3', gen.next().data)
+        self.assertEquals('step 2', gen.next().data)
+        self.assertEquals('step 1', gen.next().data)
         with self.assertRaises(StopIteration):
             gen.next()
 
@@ -40,10 +40,10 @@ class TestLog(RepoTestCase):
 
         gen = self.repo.log('foo', order=jsongit.GIT_SORT_REVERSE)
 
-        self.assertEquals('step 1', gen.next().object.value)
-        self.assertEquals('step 2', gen.next().object.value)
-        self.assertEquals('step 3', gen.next().object.value)
-        self.assertEquals('step 4', gen.next().object.value)
+        self.assertEquals('step 1', gen.next().data)
+        self.assertEquals('step 2', gen.next().data)
+        self.assertEquals('step 3', gen.next().data)
+        self.assertEquals('step 4', gen.next().data)
         with self.assertRaises(StopIteration):
             gen.next()
 
@@ -81,7 +81,7 @@ class TestLog(RepoTestCase):
         Changes should be registered at point they are merged.
         """
         self.repo.commit('foo', {'roses': 'red'})
-        self.repo.fork('bar', 'foo')
+        self.repo.checkout('foo', 'bar')
         self.repo.commit('foo', {'roses': 'red', 'violets': 'blue'})
         self.repo.commit('bar', {'roses': 'red', 'lilacs': 'purple'})
         merge = self.repo.merge('bar', 'foo')
@@ -90,14 +90,14 @@ class TestLog(RepoTestCase):
         gen = self.repo.log('bar')
 
         self.assertEquals({'roses': 'red', 'violets':'blue', 'lilacs':'purple'},
-                          gen.next().object.value)
+                          gen.next().data)
         self.assertEquals({'roses': 'red', 'violets':'blue'},
-                          gen.next().object.value,
+                          gen.next().data,
                          "Merge occurred after modification to bar.")
         self.assertEquals({'roses': 'red', 'lilacs':'purple'},
-                          gen.next().object.value)
-        self.assertEquals({'roses': 'red'}, gen.next().object.value)
-        self.assertEquals({'roses': 'red'}, gen.next().object.value)
+                          gen.next().data)
+        self.assertEquals({'roses': 'red'}, gen.next().data)
+        self.assertEquals({'roses': 'red'}, gen.next().data)
         with self.assertRaises(StopIteration):
             gen.next()
 
