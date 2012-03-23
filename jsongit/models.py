@@ -7,17 +7,16 @@ The meat of jsongit code, particularly the Repository, resides here.
 """
 
 import pygit2
-import collections
-import functools
+# import collections
+# import functools
 import shutil
 import itertools
 
-from .exceptions import NotJsonError, InvalidKeyError, DifferentRepoError
+from .exceptions import (
+    NotJsonError, InvalidKeyError, DifferentRepoError, StagedDataError)
 from .wrappers import Commit, Diff, Conflict, Merge
 import constants
 import utils
-
-# The name of the only blob within the special commit tree.
 
 class Repository(object):
     def __init__(self, repo, dumps, loads):
@@ -39,36 +38,88 @@ class Repository(object):
         """
         if not isinstance(key, basestring):
             raise InvalidKeyError("%s must be a string to be a key." % key)
-        elif key[-1] == '.' or key[-1] == '/':
-            raise InvalidKeyError("Key '%s' should not end in . or /" % key)
+        elif key[-1] == '.' or key[-1] == '/' or key[0] == '/' or key[0] == '.':
+            raise InvalidKeyError("Key '%s' should not start or end in . or /" % key)
         else:
             return 'refs/heads/jsongit/%s' % key
 
-    def _insert_repo_entry(self, key, blob_id, author, committer, message):
-        """Insert a new piece of data into the repo's tree.
-        """
-        # TreeBuilder doesn't support inserting into trees, so we roll our own
-        head_target = self._repo.lookup_reference('HEAD').target
+    def _build_commit(self, key, pygit2_commit):
+        assert key in pygit2_commit.tree
+        raw = self._repo[pygit2_commit.tree[key].oid].data
+        value = self._loads(raw)
+        return Commit(self, key, value, pygit2_commit)
+
+    def _head_target(self):
+        return self._repo.lookup_reference('HEAD').target
+
+    def _repo_head(self):
         try:
-            head_commit = self._repo[self._repo.lookup_reference(head_target).oid]
-            head_tree = head_commit.tree
-            tree_data = b''.join([
-                b"%o %s\x00%s" % (e.attributes, e.name, e.oid)  # octal attributes
-                for e in head_tree if e.name != key  # skip existing entry
-            ])
-            parents = [head_commit.oid]
-        except KeyError:  # no commit yet for head (first commit to repo),
-                          # so we create an empty tree
-            tree_data = ''
-            parents = []
-        tree_data = tree_data + b"100644 %s\x00%s" % (key, blob_id)
+            return self._repo[self._repo.lookup_reference(self._head_target()).oid]
+        except KeyError:
+            return None
 
-        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, tree_data)
-        self._repo.index.read_tree(tree_id)
+    def add(self, key, value):
+        """Add a value for a key to the working tree, staging it for commit.
+
+        :param key: The key to add
+        :type key: string
+        :param value: The value to insert
+        :param value:  The value of the key.
+
+        :type value: anything that runs through :func:`json.dumps`
+        :raises: NotJsonError, InvalidKeyError
+        """
+        self._key2ref(key) # throw InvalidKeyError
+        try:
+            blob_id = self._repo.write(pygit2.GIT_OBJ_BLOB, self._dumps(value))
+        except ValueError as e:
+            raise NotJsonError(e)
+        except TypeError as e:
+            raise NotJsonError(e)
+
+        if key in self._repo.index:
+            del self._repo.index[key]
+        working_tree_id = self._repo.index.write_tree()
+        working_tree = self._repo[working_tree_id]
+        new_entry = b"100644 %s\x00%s" % (key, blob_id)
+        tree_data = working_tree.read_raw() + new_entry
+        working_tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, tree_data)
+        self._repo.index.read_tree(working_tree_id)
         self._repo.index.write()
-        self._repo.create_commit(head_target, author, committer, message, tree_id, parents)
 
-    def commit(self, key, value, **kwargs):
+        # replace existing working entry
+        # if key in working_tree:
+        #     tree_data = b''.join([
+        #         new_entry
+        #         if e.name == key
+        #         else b"%o %s\x00%s" % (e.attributes, e.name, e.oid)  # octal attributes
+        #         for e in working_tree
+        #     ])
+        # # add the new entry
+        # else:
+
+    def checkout(self, source, dest, **kwargs):
+        """ Replace the HEAD reference for dest with a commit that points back
+        to the value at source.
+
+        :param source: The source key.
+        :type source: string
+        :param dest: The destination key
+        :type dest: string
+        :param author:
+            (optional) The author of the commit.  Defaults to global author.
+        :type author: pygit2.Signature
+        :param committer:
+            (optional) The committer of the commit.  Will default to global author.
+        :type committer: pygit2.Signature
+
+        :raises: StagedDataError
+        """
+        message = "Checkout %s from %s" % (dest, source)
+        commit = self.head(source)
+        self.commit(dest, commit.data, message=message, parents=[commit])
+
+    def commit(self, key=None, value=None, add=True, **kwargs):
         """Commit new value to the key.  Maintains relation to parent commits.
 
         :param key: The key
@@ -97,33 +148,60 @@ class Repository(object):
 
         :raises: NotJsonError, InvalidKeyError
         """
-        message = kwargs.pop('message', '' if self.has(key) else 'adding %s' % key)
-        parents = kwargs.pop('parents', [self.get(key)] if self.has(key) else [])
+        keys = [key] if key is not None else [e.path for e in self._repo.index]
+        message = kwargs.pop('message', '')
+        parents = kwargs.pop('parents', None)
         author = kwargs.pop('author', utils.signature(self._global_name,
                                                       self._global_email))
         committer = kwargs.pop('committer', author)
         if kwargs:
             raise TypeError("Unknown keyword args %s" % kwargs)
+        if key is None and value is not None:
+            raise InvalidKeyError()
 
+        if parents is not None:
+            for parent in parents:
+                if parent.repo != self:
+                    raise DifferentRepoError()
+
+        if add is True and key is not None and value is not None:
+            self.add(key, value)
+
+        repo_head = self._repo_head()
+        tree_id = self._repo.index.write_tree()
+        self._repo.create_commit(self._head_target(), author, committer,
+                                 message, self._repo.index.write_tree(),
+                                [repo_head.oid] if repo_head else [])
+
+        #tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, b"100644 %s\x00%s" % (key, blob_id))
+        # TODO This will create some keys but not others if there is a bad key
+        for key in keys:
+            if parents is None:
+                parents = [self.head(key)] if self.committed(key) else []
+            try:
+                self._repo.create_commit(self._key2ref(key), author,
+                                         committer, message, tree_id,
+                                         [parent.oid for parent in parents])
+            except pygit2.GitError as e:
+                if str(e).startswith('Failed to create reference'):
+                    raise InvalidKeyError(e)
+                else:
+                    raise e
+
+    def committed(self, key):
+        """Determine whether there is a commit for a key.
+
+        :param key: the key to check
+        :type key: string
+
+        :returns: whether there is a commit for the key.
+        :rtype: boolean
+        """
         try:
-            blob_id = self._repo.write(pygit2.GIT_OBJ_BLOB, self._dumps(value))
-        except ValueError as e:
-            raise NotJsonError(e)
-        except TypeError as e:
-            raise NotJsonError(e)
-
-        self._insert_repo_entry(key, blob_id, author, committer, message)
-
-        tree_id = self._repo.write(pygit2.GIT_OBJ_TREE, b"100644 %s\x00%s" % (key, blob_id))
-        try:
-            self._repo.create_commit(self._key2ref(key), author,
-                                     committer, message, tree_id,
-                                     [parent.oid for parent in parents])
-        except pygit2.GitError as e:
-            if str(e).startswith('Failed to create reference'):
-                raise InvalidKeyError(e)
-            else:
-                raise e
+            self._repo.lookup_reference(self._key2ref(key))
+            return True
+        except KeyError:
+            return False
 
     def destroy(self):
         """Erase this Git repository entirely.  This will remove its directory.
@@ -133,66 +211,18 @@ class Repository(object):
         shutil.rmtree(self._repo.path)
         self._repo = None
 
-    def has(self, key):
-        """Determine whether there is an entry for key in this repository.
-
-        :param key: The key to check
-        :type key: string
-
-        :returns: whether there is an entry
-        :rtype: boolean
-        """
-        try:
-            return key in self._repo.index
-        except TypeError as e:
-            raise InvalidKeyError(e)
-        # try:
-        #     self._repo.lookup_reference(self._key2ref(key))
-        #     return True
-        # except KeyError:
-        #     return False
-
-    def fork(self, dest, key=None, commit=None, **kwargs):
-        """Create a new key at dest if it does not exist whose first commit
-        will point to the head of the specified key or commit.
-
-        :param key:
-            (optional) the key of the fork source, which will use the head
-            commit.
-        :type key: string
-        :param commit: (optional) the explicit commit to fork
-        :type commit: :class:`Commit`
-        :param author:
-            (optional) The author of the commit.  Defaults to global author.
-        :type author: pygit2.Signature
-        :param committer:
-            (optional) The committer of the commit.  Will default to global author.
-        :type committer: pygit2.Signature
-
-        :raises: KeyError if there is already a key at dest.
-        """
-        if self.has(dest):
-            raise KeyError("Cannot fork to %s, there is already a key there." % dest)
-        if commit is None:
-            commit = self.get(key)
-        if commit.key == dest:
-            raise ValueError('I can see you\'ve played knifey-spooney (a key can\'t fork itself)')
-        else:
-            message = "Forking %s from %s" % (dest, commit.key)
-            self.commit(dest, commit.value, message=message, parents=[commit])
-
-    def get(self, key, back=0):
-        """Obtain a :class:`Commit` associated with a key.
+    def head(self, key, back=0):
+        """Get the head commit for a key.
 
         :param key: The key to look up.
         :type key: string
         :param back:
             (optional) How many steps back from head to get the commit.
-            Defaults to 0 (the most recent).
+            Defaults to 0 (the current head).
         :type back: integer
 
-        :returns: the wrapped data
-        :rtype: :class:`Commit`
+        :returns: the data
+        :rtype: int, float, NoneType, unicode, boolean, list, or dict
         :raises:
             KeyError if there is no entry for key, IndexError if too many steps
             back are specified.
@@ -203,6 +233,19 @@ class Repository(object):
             raise KeyError("There is no key at %s" % key)
         except StopIteration:
             raise IndexError("%s has fewer than %s commits" % (key, back))
+
+    def index(self, key):
+        """Pull the current data for key from the index.
+
+        :param key: the key to get data for
+        :type key: string
+
+        :returns: a value
+        :rtype: None, unicode, float, int, dict, list, or boolean
+        """
+        self._repo.index.read()
+        raw = self._repo[self._repo.index[key].oid].data
+        return self._loads(raw)
 
     def merge(self, dest, key=None, commit=None, **kwargs):
         """Try to merge two commits together.
@@ -228,11 +271,11 @@ class Repository(object):
         :rtype: :class:`Merge`
         """
         if commit is None:
-            commit = self.get(key)
+            commit = self.head(key)
         if commit.key == dest:
             raise ValueError('Cannot merge a key with itself')
 
-        dest_head = self.get(dest)
+        dest_head = self.head(dest)
         # No difference
         if commit.oid == dest_head.oid:
             return Merge(True, commit, dest_head, "Same commit", result=commit)
@@ -264,14 +307,6 @@ class Repository(object):
             result = self.commit(dest, merged_data, message=message, parents=parents, **kwargs)
             return Merge(True, commit, dest_head, message, result=result)
 
-    def _build_commit(self, pygit2_commit):
-        key = pygit2_commit.tree[0].name
-        raw = self._repo[self._repo[pygit2_commit.oid].tree[key].oid].data
-        value = self._loads(raw)
-        return Commit(self, key, value, pygit2_commit)
-#         raw_data = self._repo[self._repo[c.oid].tree[commit.key].oid].data
-#             return Commit(self, commit, self._loads(raw_data))
-
     def log(self, key=None, commit=None, order=constants.GIT_SORT_TOPOLOGICAL):
         """ Traverse commits from the specified key or commit.  Must specify
         one or the other.
@@ -292,16 +327,152 @@ class Repository(object):
             A generator to traverse commits, yielding :class:`Commit` objects.
         :rtype: generator
         """
-        if commit is None:
+        if key is None and commit is None:
+            raise TypeError()
+        elif commit is None:
             c = self._repo[self._repo.lookup_reference(self._key2ref(key)).oid]
-            commit = self._build_commit(c)
-        return (self._build_commit(c) for c in self._repo.walk(commit.oid, order))
+            commit = self._build_commit(key, c)
+        return (self._build_commit(commit.key, c)
+                for c in self._repo.walk(commit.oid, order) if commit.key in c.tree)
 
-    def remove(self, key):
+    def remove(self, key, force=False):
         """Remove the head reference to this key, so that it is no longer
-        visible in the repo.  Prior commits and blobs remain in the repo.
+        visible in the repo.  Prior commits and blobs remain in the repo, but
+        inaccessible through this interface.
+
+        :param key: The key to remove
+        :type key: string
+        :param force:
+            (optional) Whether to remove the HEAD reference even if
+            there is data staged in the index but not yet committed.  If force
+            is true, the index entry will be removed as well.
+        :type force: boolean
+
+        :raises: StagedDataError
         """
-        raise NotImplementedError()
+        if force is True or self.staged(key) is False:
+            del self._repo.index[key]
+        elif force is False and self.staged(key):
+            raise StagedDataError("There is data staged for %s" % key)
+        self._repo.lookup_reference(self._key2ref(key)).delete()
+
+    def reset(self, key):
+        """Reset the value in the index to its HEAD value.
+
+        :param key: the key to reset
+        :type key: string
+        """
+        self.add(key, self.head(key).data)
+
+    def show(self, key, back=0):
+        """Obtain the data at HEAD, or a certain number of steps back, for key.
+
+        :param key: The key to look up.
+        :type key: string
+        :param back:
+            (optional) How many steps back from head to get the commit.
+            Defaults to 0 (the current head).
+        :type back: integer
+
+        :returns: the data
+        :rtype: int, float, NoneType, unicode, boolean, list, or dict
+        :raises:
+            KeyError if there is no entry for key, IndexError if too many steps
+            back are specified.
+        """
+        return self.head(key, back=back).data
+
+    def staged(self, key):
+        """Determine whether the value in the index differs from the committed
+        value.
+
+        :param key: The key to check
+        :type key: string
+
+        :returns: whether the entries are different.
+        :rtype: boolean
+        """
+        if key in self._repo.index:
+            if self.committed(key):
+                return self.index(key) != self.show(key)
+            else:
+                return True
+        else:
+            return False
+        # try:
+        #     self._repo.lookup_reference(self._key2ref(key))
+        #     return True
+        # except KeyError:
+        #     return False
+
+# class Value(object):
+#     """Values are what exist behind a single key.  They provide convenience
+#     methods to their underlying repository.
+#     """
+# 
+#     def __init__(self, repo, key, data):
+#         self._repo = repo
+#         self._key = key
+#         self._data = data
+# 
+#     def add(self, **kwargs):
+#         """Convenience method to add this value to the repository.
+#         """
+#         self.repo.add(self._key, self._data, **kwargs)
+# 
+#     def commit(self, **kwargs):
+#         """Convenience method to commit this value to the repository.  By
+#         default will `add` as well.
+#         """
+#         self.repo.commit(self._key, self._data, **kwargs)
+# 
+#     @property
+#     def committed(self):
+#         """Whether this key has been committed to the repository.
+#         """
+#         return self.repo.head(self._key)[self._key].data == self.data
+# 
+#     @property
+#     def data(self):
+#         """Returns the data for this key.
+#         """
+#         return self._data
+# 
+#     def head(self, **kwargs):
+#         """Convenience method to get the head commit for this value's key from
+#         the repository.
+#         """
+#         return self.repo.head(self._key, **kwargs)
+# 
+#     def log(self, **kwargs):
+#         """Convenience method to get the log for this value's key.
+#         """
+#         return self.repo.log(self._key, **kwargs)
+# 
+#     @property
+#     def repo(self):
+#         """The repository.
+#         """
+#         return self._repo
+# 
+#     @property
+#     def staged(self):
+#         """Whether the data in this key has been staged to be committed to the
+#         repository (added, but not committed.)
+#         """
+#         return self.repo.staged(self._key)
+# 
+#     def unstage(self):
+#         """Unstage this key if it has been added, but not committed.
+#         """
+#         self.repo.unstage(self._key)
+# 
+#     def remove(self):
+#         """Convenience method to remove this key from the repository.
+#         """
+#         self.remove(self._key)
+
+
 
 
 # class Object(collections.MutableMapping, collections.MutableSequence):

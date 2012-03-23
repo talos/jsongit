@@ -31,79 +31,88 @@ repositories are equivalent to the `.git` folder of a regular git repo.
 Storing data
 ~~~~~~~~~~~~
 
-Now that you've got a repo, you can commit data to it::
+Now that you've got a repo, you can put data in it::
 
-    >>> repo.commit('foo', 'my very special bar')
+    >>> repo.add('foo', 'my very special bar')
+    >>> repo.commit()
 
 You can commit any python object that will run through :func:`json.dumps`.
-Strings, ints, floats, booleans, dicts, lists, None, are all OK::
+Strings, ints, floats, booleans, dicts, lists, and None, are all OK::
 
-    >>> repo.commit('a', 7)
-    >>> repo.commit('b', 7.77)
-    >>> repo.commit('c', True)
-    >>> repo.commit('d', ['foo', 'bar'])
-    >>> repo.commit('e', {'roses': 'red'})
-    >>> repo.commit('f', None)
+    >>> repo.add('a', 7)
+    >>> repo.add('b', 7.77)
+    >>> repo.add('c', True)
+    >>> repo.add('d', ['foo', 'bar'])
+    >>> repo.add('e', {'roses': 'red'})
+    >>> repo.add('f', None)
+    >>> repo.commit()
 
 Any combination thereof is kosher, too::
 
-    >>> repo.commit('dude', {'job': None, 'age': 42, 'likes': ['bowling', 'rug']})
+    >>> repo.add('dude', {'job': None, 'age': 42, 'likes': ['bowling', 'rug']})
+    >>> repo.commit()
+
+It's oftentimes convenient to add a value and commit simultaneously::
+
+    >>> repo.commit('fast', 'and easy, too!')
+
+This is akin to `git commit -a <file>`.  Until you commit a key, modifications
+applied to it via `add` won't be recorded in history.
 
 Retrieving Data
 ~~~~~~~~~~~~~~~
 
 Pulling the data back out is a matter of retrieving the key's value::
 
-    >>> foo = repo.get('foo')
-    >>> foo.value
+    >>> foo = repo.show('foo')
     'my very special bar'
 
-The returned object is wrapped in an :class:`Commit`. The original value
-is contained in the :attr:`Commit.value` attribute, which preserves the
+The returned object is wrapped in an :class:`Value`. The data itself
+is contained in the :attr:`Value.data` property, which preserves the
 original type::
 
-    >>> type(repo.get('a').value)
+    >>> type(repo.show('a'))
     <type 'int'>
-    >>> type(repo.get('b').value)
+    >>> type(repo.show('b'))
     <type 'float'>
-    >>> type(repo.get('c').value)
+    >>> type(repo.show('c'))
     <type 'bool'>
-    >>> type(repo.get('d').value)
+    >>> type(repo.show('d'))
     <type 'list'>
-    >>> type(repo.get('e').value)
+    >>> type(repo.show('e'))
     <type 'dict'>
-    >>> type(repo.get('f').value)
+    >>> type(repo.show('f'))
     <type 'NoneType'>
 
 All data is run back through :func:`json.loads` on the way out::
 
-    >>> repo.get('dude').value['job']
+    >>> repo.show('dude')['job']
     None
-    >>> repo.get('dude').value['likes']
+    >>> repo.show('dude')['likes']
     ['bowling', 'rug']
 
 Commit Data
 ~~~~~~~~~~~
 
-The :class:`Commit` also provides information about the commit::
+You can retrieve commit information on a key-by-key basis::
 
-    >>> commit = repo.get('foo')
+    >>> commit = repo.head('foo')
     >>> commit.message
     'adding foo'
     >>> commit.author.name
     'Jon Q. User'
     >>> commit.time
-
+    1332438935L
 
 Merging Data
 ~~~~~~~~~~~~
 
 Keys can be merged back together if they split from a single commit.  First,
-fork an existing commit::
+checkout an existing key into a new key::
 
     >>> repo.commit('spoon', {'material': 'silver'})
-    >>> repo.fork('fork', 'spoon')
-    >>> repo.get('fork').value
+    >>> repo.checkout('fork', 'spoon')
+    >>> repo.checkout('fork')
     {'material': 'silver'}
 
 Since `fork` and `spoon` share that initial commit, they can be merged later
@@ -113,7 +122,7 @@ on.  Merging returns a :class:`Merge` with information about what happened::
     >>> merge = repo.merge('fork', 'spoon')
     >>> merge.message
 
-    >>> repo.get('fork').value
+    >>> repo.checkout('fork')
     {'material': 'stainless'}
 
 Intervening changes to `spoon` were applied to `fork`.
@@ -128,7 +137,7 @@ All the modifications to a key are available in its log::
     >>> repo.commit('president', 'madison')
     >>> log = repo.log('president')
     >>> for commit in log:
-    ...     print(commit.value)
+    ...     print(commit.data)
     ...
     madison
     adams
@@ -140,15 +149,15 @@ deeper commits.
 History
 ~~~~~~~
 
-By default, :func:`Repository.get` returns the most recent commit for a key.
+By default, :func:`Repository.show` returns the data in the index.
 You can choose to get something from further back on demand::
 
-    >>> repo.get('president', back=2).value
+    >>> repo.show('president', back=2).value
     'washington'
 
 Going too far back in time will raise a friendly reminder::
 
-    >>> repo.get('president', back=300).value
+    >>> repo.show('president', back=300).value
     IndexError: president has fewer than 300 commits
 
 .. Wrapped Object Interface

@@ -35,3 +35,9 @@ class NoGlobalSettingError(RuntimeError):
     def __init__(self, name):
         super(NoGlobalSettingError, self).__init__(
             "Git on this system has no global setting '%s'" % name)
+
+class StagedDataError(RuntimeError):
+    """Raised when an attempt is made to remove a key that has data staged in
+    the index. Subclasses :exc: RUntimeError
+    """
+    pass

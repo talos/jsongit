@@ -11,34 +11,34 @@ import itertools
 import copy
 
 class Commit(object):
-    """A wrapper around :class:`pygit2.Commit` that links to a specific key
-    in the repo.
+    """A wrapper around :class:`pygit2.Commit` linking to a single key in the
+    repo.
     """
 
-    def __init__(self, repo, key, value, pygit2_commit):
+    def __init__(self, repo, key, data, pygit2_commit):
         self._commit = pygit2_commit
         self._repo = repo
         self._key = key
-        self._value = value
+        self._data = data
 
     def __eq__(self, other):
         return self.oid == other.oid
 
     def __str__(self):
-        return "'%s'='%s'@%s" % (self.key, self.value, self.hex)
+        return "'%s'='%s'@%s" % (self.key, self.data, self.hex[0:10])
 
     def __repr__(self):
-        return "%s(%s,message=%s,author=)" % (type(self).__name__,
+        return "%s(%s,message=%s,author=%s)" % (type(self).__name__,
                                               self.__str__(), self.message,
                                              self.author)
 
     @property
-    def value(self):
+    def data(self):
         """
-        :returns: the value associated with this commit.
+        :returns: the data associated with this commit.
         :rtype: Boolean, Number, None, String, Dict, or List
         """
-        return self._value
+        return self._data
 
     @property
     def key(self):
@@ -92,14 +92,18 @@ class Commit(object):
     def time(self):
         """
         :returns: The time of this commit.
-        :rtype:
+        :rtype: long
         """
         return self._commit.commit_time
 
-    def log(self, **kwargs):
-        """A wrapper to :func:`Repository.log` from this commit.
+    @property
+    def repo(self):
         """
-        return self._repo.log(commit=self, **kwargs)
+        :returns: The repository of this commit.
+        :rtype: :class:`Repository`
+        """
+        return self._repo
+
 
 class DiffWrapper(object):
     """An internal wrapper for :mod:`json_diff`.
