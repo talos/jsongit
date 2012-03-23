@@ -17,19 +17,20 @@ Python.
 
     >>> r = jsongit.init('repo')
     >>> r.commit('foo', {})
-    >>> r.fork('bar', 'foo')
+    >>> r.checkout('foo', 'bar')
     >>> r.commit('foo', {'roses': 'red'})
     >>> r.commit('bar', {'violets': 'blue'})
     >>> r.merge('foo', 'bar').message
-
-    >>> r.get('foo').value
+    Auto-merge of be92d3dcb6 and dbde44bada from shared parent 5d55214e4f
+    >>> r.show('foo')
     {u'roses': u'red', u'violets': u'blue'}
-    >>> pprint([commit.value for commit in r.log('foo')])
-    [{u'roses': u'red', u'violets': u'blue'},
-     {u'violets': u'blue'},
-     {},
-     {u'roses': u'red'},
-     {}]
+    >>> for commit in r.log('foo'):
+    ...     print(commit)
+    'foo'='{u'roses': u'red', u'violets': u'blue'}'@fc9e0f3106
+    'bar'='{u'violets': u'blue'}'@be92d3dcb6
+    'bar'='{}'@5bb29ad7dc
+    'foo'='{u'roses': u'red'}'@dbde44bada
+    'foo'='{}'@5d55214e4f
 
 JsonGit layers above the Python packages pygit2_ and json_diff_ to give you
 logs, merges, diffs, and persistence for any objects that serialize to JSON_.

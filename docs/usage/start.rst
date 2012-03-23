@@ -65,7 +65,7 @@ Retrieving Data
 Pulling the data back out is a matter of retrieving the key's value::
 
     >>> foo = repo.show('foo')
-    'my very special bar'
+    u'my very special bar'
 
 The returned object is wrapped in an :class:`Value`. The data itself
 is contained in the :attr:`Value.data` property, which preserves the
@@ -86,8 +86,8 @@ original type::
 
 All data is run back through :func:`json.loads` on the way out::
 
-    >>> repo.show('dude')['job']
-    None
+    >>> str(repo.show('dude')['job'])
+    'None'
     >>> repo.show('dude')['likes']
     ['bowling', 'rug']
 
@@ -96,11 +96,12 @@ Commit Data
 
 You can retrieve commit information on a key-by-key basis::
 
+    >>> repo.commit('foo', 'bar', message="leveraging fu")
     >>> commit = repo.head('foo')
     >>> commit.message
-    'adding foo'
+    u'leveraging fu'
     >>> commit.author.name
-    'Jon Q. User'
+    u'Jon Q. User'
     >>> commit.time
     1332438935L
 
@@ -111,9 +112,9 @@ Keys can be merged back together if they split from a single commit.  First,
 checkout an existing key into a new key::
 
     >>> repo.commit('spoon', {'material': 'silver'})
-    >>> repo.checkout('fork', 'spoon')
-    >>> repo.checkout('fork')
-    {'material': 'silver'}
+    >>> repo.checkout('spoon', 'fork')
+    >>> repo.show('fork')
+    {u'material': u'silver'}
 
 Since `fork` and `spoon` share that initial commit, they can be merged later
 on.  Merging returns a :class:`Merge` with information about what happened::
@@ -121,9 +122,9 @@ on.  Merging returns a :class:`Merge` with information about what happened::
     >>> repo.commit('spoon', {'material': 'stainless'})
     >>> merge = repo.merge('fork', 'spoon')
     >>> merge.message
-
-    >>> repo.checkout('fork')
-    {'material': 'stainless'}
+    u'Auto-merge of d0e0aa8061 and ce29b985cf from shared parent d21cb53771'
+    >>> repo.show('fork')
+    {u'material': u'stainless'}
 
 Intervening changes to `spoon` were applied to `fork`.
 
@@ -149,72 +150,40 @@ deeper commits.
 History
 ~~~~~~~
 
-By default, :func:`Repository.show` returns the data in the index.
-You can choose to get something from further back on demand::
+By default, :func:`Repository.show` returns the data from the most recent
+commit.  You can choose to get something from further back on demand::
 
     >>> repo.show('president', back=2).value
-    'washington'
+    u'washington'
 
 Going too far back in time will raise a friendly reminder::
 
     >>> repo.show('president', back=300).value
     IndexError: president has fewer than 300 commits
 
-.. Wrapped Object Interface
-.. ------------------------
-.. 
-.. While all JsonGit actions can be mapped to methods on the :class:`Repository`,
-.. it is often more convenient to keep a reference to a specific key, and call
-.. methods upon it instead.
-.. 
-.. Wrapped objects let you do just that::
-.. 
-..     >>> wrapped = repo.commit('parappa', {'activity': 'rapper'})
-..     >>> wrapped.key
-..     'parappa'
-..     >>> wrapped.value
-..     {'activity': 'rapper'}
-..     >>> wrapped['motto'] = 'I gotta believe!'
-..     >>> wrapped.commit()
-..     >>> repo.get('parappa').value
-..     {'motto': 'I gotta believe!', 'activity': 'rapper'}
-.. 
-.. Iteration
-.. ~~~~~~~~~
-.. 
-.. Wrapped dicts and lists can be modified and iterated just like native dicts
-.. and lists::
-.. 
-..     >>> for key in wrapped:
-..     ...     print(key, wrapped[key])
-..     ...
-..     ('motto', 'I gotta believe!')
-..     ('activity', 'rapper')
-.. 
-.. Commits and Dirt
-.. ~~~~~~~~~~~~~~~~
-.. 
-.. Until you call :func:`Object.commit`, any changes you've made to a wrapped
-.. object will not be saved in the repository.  You can avoid the overhead of a
-.. commit until you're ready.  Every wrapped object has a :attr:`Object.dirty`
-.. property to let you know if it is out of sync with the repository::
-.. 
-..     >>> wrapped['licensed'] = True
-..     >>> wrapped.dirty
-..     True
-..     >>> repo.get('parappa').value
-..     {'motto': 'I gotta believe!', 'activity': 'rapper'}
-..     >>> wrapped.commit()
-..     >>> wrapped.dirty
-..     False
-..     >>> repo.get('parappa').value
-..     {'motto': 'I gotta believe!', 'licensed': True, 'activity': 'rapper'}
-.. 
-.. .. _intuitive merging:
-.. 
-.. Intuitive Merging
-.. ~~~~~~~~~~~~~~~~~
-.. 
-.. .. Wrapped objects make it easier to fork, edit, and merge keys::
-.. 
-..     
+Index
+~~~~~
+
+Until you actually commit a key, its value is kept in the index::
+
+    >>> repo.add('added', 'but not committed!')
+    >>> repo.index('added')
+    u'but not committed!'
+
+Since it hasn't been committed, there's nothing to show::
+
+    >>> repo.show('added')
+    KeyError: 'There is no key at added'
+
+Modifications independent of commits won't appear in your log, either::
+
+    >>> repo.add('release', 'pet sounds')
+    >>> repo.commit('release')
+    >>> repo.add('release', 'smile')
+    >>> repo.add('release', 'smiley smile')
+    >>> repo.commit('release')
+    >>> for commit in repo.log('release'):
+    ...    print(commit.data)
+    ...
+    smiley smile
+    pet sounds
