@@ -3,20 +3,16 @@
 API
 ===
 
+.. module:: jsongit
+
 This documentation covers JsonGit's interfaces.
 
-Repos & Objects
-~~~~~~~~~~~~~~~
+Repository
+----------
 
-JsonGit should be used through the public methods of :class:`models.Repository`
-and :class:`models.Object`.  You should never need to use any class
-constructors, instead using :func:`repo` to obtain your
-:class:`models.Repository`.
+JsonGit should be used through the public methods of :class:`Repository
+<models.Repository>`.  You should use :func:`init` to obtain the object, not the constructor.
 
-The :class:`models.Object` wraps a key stored in its Repository.  You can
-choose to ignore it and use the Repository as a key-value store.
-
-.. module:: jsongit
 .. autofunction:: init
 
 ----------------------
@@ -25,11 +21,19 @@ choose to ignore it and use the Repository as a key-value store.
 .. autoclass:: Repository
    :inherited-members:
 
-Diffs & Merges
-~~~~~~~~~~~~~~
+.. module:: jsongit.wrappers
 
-Repositories and objects provide an interface for merging.  These classes
-provide methods to investigate merges.
+Commit
+------
+
+.. autoclass:: Commit
+   :inherited-members:
+
+Diffs & Merges
+--------------
+
+The repository provides an interface for merging.  These classes provide
+methods and properties to investigate merges.
 
 .. autoclass:: Diff
    :inherited-members:
@@ -37,16 +41,17 @@ provide methods to investigate merges.
    :inherited-members:
 
 Exceptions
-~~~~~~~~~~
+----------
 
 .. module:: jsongit
 .. autoexception:: NoGlobalSettingError
 .. autoexception:: DifferentRepoError
 .. autoexception:: InvalidKeyError
 .. autoexception:: NotJsonError
+.. autoexception:: StagedDataError
 
 Utilities
-~~~~~~~~~
+---------
 
 These are convenience methods used internally by JsonGit.  They provide some
 useful abstractions for :mod:`pygit2`.

@@ -100,7 +100,7 @@ class Commit(object):
     def repo(self):
         """
         :returns: The repository of this commit.
-        :rtype: :class:`Repository`
+        :rtype: :class:`Repository <jsongit.models.Repository>`
         """
         return self._repo
 
@@ -187,11 +187,6 @@ class DiffWrapper(object):
 
 class Diff(DiffWrapper):
     """A class to encapsulate differences between two JSON git objects.
-
-    :param obj1: The original object.
-    :type obj1: :class:`JsonGitObject`
-    :param obj2: The object to compare to.
-    :type obj2: :class:`JsonGitObject`
     """
 
     APPEND = '_append'
@@ -308,9 +303,8 @@ class Merge(object):
     def result(self):
         """
         :returns:
-            The :class:`Object` resulting from this merge, or None if
-            there was a conflict.
-        :rtype: :class:`Object`
+            the object resulting from this merge, or None if there was
+            a conflict.
         """
         return self._result
 

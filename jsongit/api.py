@@ -12,7 +12,17 @@ import utils
 
 def init(path=None, repo=None, **kwargs):
     """Obtain a :class:`Repository`.  Either a path to a repo or an
-    existing repo must be provided.
+    existing `pygit2.Repository` must be provided.  If the path exists, it will
+    be interpreted as the path to an existing repository; if it does not, a new
+    bare repository will be created there.
+
+    >>> repo = jsongit.init('path/to/repo')
+
+    Or, if you want to take advantage of special `pygit2` options:
+
+    >>> import pygit2
+    >>> pygit_repo = pygit2.init_repository('path/to/repo', False)
+    >>> jsongit_repo = jsongit.init(repo=pygit_repo)
 
     :param path:
         The path to a repository. If it is a path that does not exist, a new
@@ -31,7 +41,7 @@ def init(path=None, repo=None, **kwargs):
     :type loads: func
 
     :returns: A repository reference
-    :rtype: :class:`Repository`
+    :rtype: :class:`Repository <jsongit.models.Repository>`
     """
     if repo and path:
         raise TypeError("Cannot define repo and path")

@@ -21,7 +21,8 @@ class InvalidKeyError(TypeError):
 
 
 class DifferentRepoError(ValueError):
-    """This is raised if a merge is attempted on a :class:`Object` in a
+    """This is raised if a merge is attempted on a :class:`Commit
+    <jsongit.wrappers.Commit>` in a
     different repo.  Subclasses :exc:`ValueError`.
     """
     pass
@@ -38,6 +39,6 @@ class NoGlobalSettingError(RuntimeError):
 
 class StagedDataError(RuntimeError):
     """Raised when an attempt is made to remove a key that has data staged in
-    the index. Subclasses :exc: RUntimeError
+    the index. Subclasses :exc:`RuntimeError`
     """
     pass

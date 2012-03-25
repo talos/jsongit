@@ -12,13 +12,18 @@ import subprocess
 from .exceptions import NoGlobalSettingError
 
 def global_config(name):
-    """Find a git --global setting
+    """Find the value of a `git --global` setting.
+
+    >>> jsongit.global_config('user.name')
+    'Jon Q. User'
+    >>> jsongit.global_config('user.email')
+    'jon.q@user.com'
 
     :param name: the name of the setting
     :type name: string
     :return: the value of the setting
     :rtype: string
-    :raises: NoGlobalSettingError
+    :raises: :exc:`NoGlobalSettingError <jsongit.NoGlobalSettingError>`
     """
     # TODO libgit2 provides an interface for this, but pygit2 does not.  Should
     # patch pygit2 to provide it.  In the interim, we must use subprocess.

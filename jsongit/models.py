@@ -34,7 +34,7 @@ class Repository(object):
         for that key.  This translates keys to the appropriate path (in
         /refs/heads/jsongit/).
 
-        :raises: InvalidKeyError
+        :raises: :class:`InvalidKeyError`
         """
         if not isinstance(key, basestring):
             raise InvalidKeyError("%s must be a string to be a key." % key)
@@ -70,13 +70,20 @@ class Repository(object):
     def add(self, key, value):
         """Add a value for a key to the working tree, staging it for commit.
 
+        >>> repo.add('added', 'but not committed!')
+        >>> repo.index('added')
+        u'but not committed!'
+        >>> repo.show('added')
+        KeyError: 'There is no key at added'
+
         :param key: The key to add
         :type key: string
         :param value: The value to insert
-        :param value:  The value of the key.
-
         :type value: anything that runs through :func:`json.dumps`
-        :raises: NotJsonError, InvalidKeyError
+
+        :raises:
+            :class:`NotJsonError <jsongit.NotJsonError>`
+            :class:`InvalidKeyError <jsongit.InvalidKeyError>`
         """
         self._key2ref(key) # throw InvalidKeyError
         try:
@@ -96,20 +103,14 @@ class Repository(object):
         self._repo.index.read_tree(working_tree_id)
         self._repo.index.write()
 
-        # replace existing working entry
-        # if key in working_tree:
-        #     tree_data = b''.join([
-        #         new_entry
-        #         if e.name == key
-        #         else b"%o %s\x00%s" % (e.attributes, e.name, e.oid)  # octal attributes
-        #         for e in working_tree
-        #     ])
-        # # add the new entry
-        # else:
-
     def checkout(self, source, dest, **kwargs):
         """ Replace the HEAD reference for dest with a commit that points back
         to the value at source.
+
+        >>> repo.commit('spoon', {'material': 'silver'})
+        >>> repo.checkout('spoon', 'fork')
+        >>> repo.show('fork')
+        {u'material': u'silver'}
 
         :param source: The source key.
         :type source: string
@@ -122,14 +123,26 @@ class Repository(object):
             (optional) The committer of the commit.  Will default to global author.
         :type committer: pygit2.Signature
 
-        :raises: StagedDataError
+        :raises: :class:`StagedDataError <jsongit.StagedDataError>`
         """
         message = "Checkout %s from %s" % (dest, source)
         commit = self.head(source)
         self.commit(dest, commit.data, message=message, parents=[commit])
 
     def commit(self, key=None, value=None, add=True, **kwargs):
-        """Commit new value to the key.  Maintains relation to parent commits.
+        """Commit the index to the working tree.
+
+        >>> repo.add('foo', 'my very special bar')
+        >>> repo.commit()
+        >>> foo = repo.show('foo')
+        u'my very special bar'
+
+        If a key and value are specified, will add them immediately before
+        committing them.
+
+        >>> repo.commit('fast', 'and easy, too!')
+        >>> foo = repo.show('fast')
+        u'and easy, too!'
 
         :param key: The key
         :type key: string
@@ -144,7 +157,7 @@ class Repository(object):
         :type message: string
         :param author:
             (optional) The signature for the committer of the first commit.
-            Defaults to global author.
+            Defaults to git's `--global` `author.name` and `author.email`.
         :type author: pygit2.Signature
         :param committer:
             (optional) The signature for the committer of the first commit.
@@ -153,9 +166,11 @@ class Repository(object):
         :param parents:
             (optional) The parents of this commit.  Defaults to the last commit
             for this key if it already exists, or an empty list if not.
-        :type parents: list of :class:`Commit`
+        :type parents: list of :class:`Commit <jsongit.wrappers.Commit>`
 
-        :raises: NotJsonError, InvalidKeyError
+        :raises:
+            :class:`NotJsonError <jsongit.NotJsonError>`
+            :class:`InvalidKeyError <jsongit.InvalidKeyError>`
         """
         keys = [key] if key is not None else [e.path for e in self._repo.index]
         message = kwargs.pop('message', '')
@@ -203,6 +218,12 @@ class Repository(object):
     def committed(self, key):
         """Determine whether there is a commit for a key.
 
+        >>> repo.committed('foo')
+        False
+        >>> repo.commit('foo', 'bar')
+        >>> repo.committed('foo')
+        True
+
         :param key: the key to check
         :type key: string
 
@@ -219,12 +240,25 @@ class Repository(object):
         """Erase this Git repository entirely.  This will remove its directory.
         Methods called on a repository or its objects after it is destroyed
         will throw exceptions.
+
+        >>> repo.destroy()
+        >>> repo.commit('foo', 'bar')
+        AttributeError: 'NoneType' object has no attribute 'write'
         """
         shutil.rmtree(self._repo.path)
         self._repo = None
 
     def head(self, key, back=0):
         """Get the head commit for a key.
+
+        >>> repo.commit('foo', 'bar', message="leveraging fu")
+        >>> commit = repo.head('foo')
+        >>> commit.message
+        u'leveraging fu'
+        >>> commit.author.name
+        u'Jon Q. User'
+        >>> commit.time
+        1332438935L
 
         :param key: The key to look up.
         :type key: string
@@ -249,6 +283,10 @@ class Repository(object):
     def index(self, key):
         """Pull the current data for key from the index.
 
+        >>> repo.add('added', 'but not committed!')
+        >>> repo.index('added')
+        u'but not committed!'
+
         :param key: the key to get data for
         :type key: string
 
@@ -262,6 +300,17 @@ class Repository(object):
     def merge(self, dest, key=None, commit=None, **kwargs):
         """Try to merge two commits together.
 
+        >>> repo.commit('spoon', {'material': 'silver'})
+        >>> repo.checkout('spoon', 'fork')
+        >>> repo.show('fork')
+        {u'material': u'silver'}
+        >>> repo.commit('spoon', {'material': 'stainless'})
+        >>> merge = repo.merge('fork', 'spoon')
+        >>> merge.message
+        u'Auto-merge of d0e0aa8061 and ce29b985cf from shared parent d21cb53771'
+        >>> repo.show('fork')
+        {u'material': u'stainless'}
+
         :param dest: the key to receive the merge
         :type dest: string
         :param key:
@@ -269,7 +318,7 @@ class Repository(object):
             commit.
         :type key: string
         :param commit: (optional) the explicit commit to merge
-        :type commit: :class:`Commit`
+        :type commit: :class:`Commit <jsongit.wrappers.Commit>`
         :param author:
             (optional) The author of this commit, if one is necessary.
             Defaults to global author.
@@ -280,7 +329,7 @@ class Repository(object):
         :type committer: pygit2.Signature
 
         :returns: The results of the merge operation
-        :rtype: :class:`Merge`
+        :rtype: :class:`Merge <jsongit.wrappers.Merge>`
         """
         if commit is None:
             commit = self.head(key)
@@ -323,20 +372,33 @@ class Repository(object):
         """ Traverse commits from the specified key or commit.  Must specify
         one or the other.
 
+        >>> repo.commit('president', 'washington')
+        >>> repo.commit('president', 'adams')
+        >>> repo.commit('president', 'madison')
+        >>> log = repo.log('president')
+        >>> for commit in log:
+        ...     print(commit.data)
+        ...
+        madison
+        adams
+        washington
+
         :param key:
             (optional) The key to look up a log for.  Will look from the head
             commit.
         :type key: string
         :param commit:
             (optional) An explicit commit to look up log for.
-        :type commit: :class:`Commit`
+        :type commit: :class:`Commit <jsongit.wrappers.Commit>`
         :param order:
             (optional) Flags to order traversal.  Valid flags are in
-            :mod:`constants`.  Defaults to :const:`GIT_SORT_TOPOLOGICAL`
+            :mod:`constants <jsongit.constants>`.
+            Defaults to :const:`GIT_SORT_TOPOLOGICAL <jsongit.GIT_SORT_TOPOLOGICAL>`
         :type order: number
 
         :returns:
-            A generator to traverse commits, yielding :class:`Commit` objects.
+            A generator to traverse commits, yielding
+            :class:`Commit <jsongit.wrappers.Commit>`s.
         :rtype: generator
         """
         if key is None and commit is None:
@@ -349,7 +411,14 @@ class Repository(object):
     def remove(self, key, force=False):
         """Remove the head reference to this key, so that it is no longer
         visible in the repo.  Prior commits and blobs remain in the repo, but
-        inaccessible through this interface.
+        detached.
+
+        >>> repo.commit('foo', 'bar')
+        >>> repo.remove('foo')
+        >>> repo.committed('foo')
+        False
+        >>> repo.staged('foo')
+        False
 
         :param key: The key to remove
         :type key: string
@@ -359,7 +428,7 @@ class Repository(object):
             is true, the index entry will be removed as well.
         :type force: boolean
 
-        :raises: StagedDataError
+        :raises: :class:`StagedDataError jsongit.StagedDataError`
         """
         if force is True or self.staged(key) is False:
             del self._repo.index[key]
@@ -370,6 +439,12 @@ class Repository(object):
     def reset(self, key):
         """Reset the value in the index to its HEAD value.
 
+        >>> repo.commit('creation', 'eons')
+        >>> repo.add('creation', 'seven days')
+        >>> repo.reset('creation')
+        >>> repo.index('creation')
+        u'eons'
+
         :param key: the key to reset
         :type key: string
         """
@@ -377,6 +452,14 @@ class Repository(object):
 
     def show(self, key, back=0):
         """Obtain the data at HEAD, or a certain number of steps back, for key.
+
+        >>> repo.commit('president', 'washington')
+        >>> repo.commit('president', 'adams')
+        >>> repo.commit('president', 'madison')
+        >>> repo.show('president')
+        u'madison'
+        >>> repo.show('president', back=2)
+        u'washington'
 
         :param key: The key to look up.
         :type key: string
@@ -395,7 +478,16 @@ class Repository(object):
 
     def staged(self, key):
         """Determine whether the value in the index differs from the committed
-        value.
+        value, if there is an entry in the index.
+
+        >>> repo.staged('huey')
+        False
+        >>> repo.add('huey', 'long')
+        >>> repo.staged('huey')
+        True
+        >>> repo.commit()
+        >>> repo.staged('huey')
+        False
 
         :param key: The key to check
         :type key: string
