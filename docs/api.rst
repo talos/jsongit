@@ -35,6 +35,8 @@ Diffs & Merges
 The repository provides an interface for merging.  These classes provide
 methods and properties to investigate merges.
 
+.. autoclass:: Merge
+   :inherited-members:
 .. autoclass:: Diff
    :inherited-members:
 .. autoclass:: Conflict

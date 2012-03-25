@@ -105,7 +105,8 @@ checkout an existing key into a new key::
     {u'material': u'silver'}
 
 Since `fork` and `spoon` share that initial commit, they can be merged later
-on.  Merging returns a :py:class:`Merge` with information about what happened::
+on.  Merging returns a :class:`Merge <jsongit.wrappers.Merge>`
+with information about what happened::
 
     >>> repo.commit('spoon', {'material': 'stainless'})
     >>> merge = repo.merge('fork', 'spoon')

@@ -310,20 +310,31 @@ class Merge(object):
 
     @property
     def success(self):
+        """Whether the merge was a success.
+        """
         return self._success
 
     @property
     def original(self):
+        """The original object.
+        """
         return self._original
 
     @property
     def merged(self):
+        """The object that was merged in.
+        """
         return self._merged
 
     @property
     def conflict(self):
+        """The :class:`Conflict <jsongit.wrappers.Conflict>`, if the merge
+        was not a success.
+        """
         return self._conflict
 
     @property
     def message(self):
+        """The message associated with this merge.
+        """
         return self._message
